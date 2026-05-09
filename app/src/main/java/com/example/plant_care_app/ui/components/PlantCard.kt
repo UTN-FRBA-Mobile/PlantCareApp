@@ -15,6 +15,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -29,7 +30,8 @@ fun PlantCard(
     name: String,
     location: String,
     humidity: Int,
-    status: String
+    status: String,
+    onClick: () -> Unit
 ) {
     val backgroundColor = when (status) {
 
@@ -43,11 +45,13 @@ fun PlantCard(
     }
 
     Card(
-        Modifier.fillMaxWidth(),
-        RoundedCornerShape(16.dp),
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = backgroundColor
         )
+
     ) {
         Row(
             modifier = Modifier.padding(16.dp)
@@ -56,7 +60,7 @@ fun PlantCard(
             Image(
                 painter = painterResource(id = R.drawable.planta),
                 contentDescription = "Planta",
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop
             )
 
@@ -95,5 +99,5 @@ fun PlantCardPreview() {
         "Balcón detrás",
         62,
         "Estoy Bien!"
-    )
+    ) {}
 }
