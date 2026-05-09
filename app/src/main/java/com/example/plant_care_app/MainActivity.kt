@@ -19,6 +19,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.plant_care_app.ui.screens.AddPlantScreen
 import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 
@@ -29,7 +33,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PlantCareAppTheme {
-                PlantsOverviewScreen()
+                val navController = rememberNavController()
+                NavHost(navController = navController, startDestination = "overview") {
+                    composable("overview") {
+                        PlantsOverviewScreen(onAddPlant = { navController.navigate("add_plant") })
+                    }
+                    composable("add_plant") {
+                        AddPlantScreen(onBack = { navController.popBackStack() })
+                    }
+                }
             }
         }
     }

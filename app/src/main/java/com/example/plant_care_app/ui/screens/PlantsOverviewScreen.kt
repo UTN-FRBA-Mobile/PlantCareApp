@@ -27,13 +27,11 @@ import androidx.compose.ui.unit.sp
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.ui.components.PlantCard
 import com.example.plant_care_app.ui.models.PlantOverviewDto
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import com.example.plant_care_app.R
 
@@ -45,7 +43,7 @@ data class PlantUi(
 )
 
 @Composable
-fun PlantsOverviewScreen() {
+fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}) {
 
     var plants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
 
@@ -75,21 +73,13 @@ fun PlantsOverviewScreen() {
 
 
             Text(
-                text = "Mis Plantitas",
+                text = "Mis Plantas",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )
 
-            val context = LocalContext.current
-
             Button(
-                onClick = {
-                    Toast.makeText(
-                        context,
-                        "Funcionalidad en desarrollo",
-                        Toast.LENGTH_LONG
-                    ).show()
-                },
+                onClick = onAddPlant,
 
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2E7D32)
