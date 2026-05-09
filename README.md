@@ -35,11 +35,11 @@ PlantCareApp permite a los usuarios registrar y monitorear sus plantas en tiempo
 
 ## Equipo
 
-Proyecto grupal — UTN-FRBA, 1er cuatrimestre 2026, Curso: K5061 
-Matias Morales
-Francisco Molina
-Bruno Massaccese
-Matias Moll
+Proyecto grupal — UTN-FRBA, 1er cuatrimestre 2026, Curso: K5061  
+Matias Morales  
+Francisco Molina  
+Bruno Massaccese  
+Matias Moll  
 
 ---
 
