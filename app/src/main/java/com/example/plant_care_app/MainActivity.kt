@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.plant_care_app.ui.screens.PlantDetailScreen
 import com.example.plant_care_app.ui.screens.AddPlantScreen
 import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
@@ -33,16 +34,29 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PlantCareAppTheme {
-                val navController = rememberNavController()
-                NavHost(navController = navController, startDestination = "overview") {
-                    composable("overview") {
-                        PlantsOverviewScreen(onAddPlant = { navController.navigate("add_plant") })
-                    }
-                    composable("add_plant") {
-                        AddPlantScreen(onBack = { navController.popBackStack() })
-                    }
-                }
+                App()
             }
+        }
+    }
+}
+
+@Composable
+private fun App(){
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "overview") {
+        composable("overview") {
+            PlantsOverviewScreen(
+                navController = navController, onAddPlant = { navController.navigate("add_plant") })
+        }
+        composable("plant_detail/{plantId}") { backStackEntry ->
+            val plantId = backStackEntry.arguments?.getString("plantId") ?: ""
+            PlantDetailScreen(
+                plantId = plantId,
+                navController = navController
+            )
+        }
+        composable("add_plant") {
+            AddPlantScreen(onBack = { navController.popBackStack() })
         }
     }
 }
@@ -71,6 +85,6 @@ fun Greeting(modifier: Modifier = Modifier) {
 @Composable
 fun GreetingPreview() {
     PlantCareAppTheme {
-        PlantsOverviewScreen()
+//        PlantsOverviewScreen()
     }
 }

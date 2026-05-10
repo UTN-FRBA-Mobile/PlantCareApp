@@ -52,3 +52,5 @@ google-services.json
 .idea/
 .gradle/
 app/build/
+
+CLAUDE.md
