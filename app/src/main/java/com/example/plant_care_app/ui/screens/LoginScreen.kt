@@ -47,10 +47,18 @@ import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 
 @Composable
 fun LoginScreen(navController: NavController) {
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     LoginScreenContent(
-        onLoginClick = {
-            navController.navigate("overview") {
-                popUpTo("login") { inclusive = true }
+        errorMessage = errorMessage,
+        onLoginClick = { email, password ->
+            if (email.isNotEmpty() && password.isNotEmpty()) {
+                errorMessage = null
+                navController.navigate("overview") {
+                    popUpTo("login") { inclusive = true }
+                }
+            } else {
+                errorMessage = "Por favor, completa todos los campos"
             }
         },
         onSignUpClick = {
@@ -61,7 +69,8 @@ fun LoginScreen(navController: NavController) {
 
 @Composable
 private fun LoginScreenContent(
-    onLoginClick: () -> Unit,
+    errorMessage: String?,
+    onLoginClick: (String, String) -> Unit,
     onSignUpClick: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
@@ -101,6 +110,16 @@ private fun LoginScreenContent(
             modifier = Modifier.padding(bottom = 48.dp)
         )
 
+        // Error Message
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+
         // Email Field
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -112,7 +131,9 @@ private fun LoginScreenContent(
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = { 
+                    email = it 
+                },
                 placeholder = { Text("ejemplo@correo.com", color = Color.LightGray) },
                 leadingIcon = {
                     Icon(
@@ -144,7 +165,9 @@ private fun LoginScreenContent(
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = { 
+                    password = it 
+                },
                 placeholder = { Text("••••••••", color = Color.LightGray) },
                 leadingIcon = {
                     Icon(
@@ -168,7 +191,7 @@ private fun LoginScreenContent(
 
         // Login Button
         Button(
-            onClick = onLoginClick,
+            onClick = { onLoginClick(email, password) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -213,6 +236,10 @@ private fun LoginScreenContent(
 @Composable
 private fun LoginScreenPreview() {
     PlantCareAppTheme {
-        LoginScreenContent(onLoginClick = {}, onSignUpClick = {})
+        LoginScreenContent(
+            errorMessage = null,
+            onLoginClick = { _, _ -> },
+            onSignUpClick = {}
+        )
     }
 }
