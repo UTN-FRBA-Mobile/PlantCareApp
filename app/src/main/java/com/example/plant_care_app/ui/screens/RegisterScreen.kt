@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -46,31 +49,35 @@ import com.example.plant_care_app.R
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 
 @Composable
-fun LoginScreen(navController: NavController) {
-    LoginScreenContent(
-        onLoginClick = {
+fun RegisterScreen(navController: NavController) {
+    RegisterScreenContent(
+        onCreateAccountClick = {
+            // Lógica de registro (a implementar)
             navController.navigate("overview") {
                 popUpTo("login") { inclusive = true }
             }
         },
-        onSignUpClick = {
-            navController.navigate("register")
+        onBackToLoginClick = {
+            navController.popBackStack()
         }
     )
 }
 
 @Composable
-private fun LoginScreenContent(
-    onLoginClick: () -> Unit,
-    onSignUpClick: () -> Unit
+private fun RegisterScreenContent(
+    onCreateAccountClick: () -> Unit,
+    onBackToLoginClick: () -> Unit
 ) {
+    var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -80,7 +87,7 @@ private fun LoginScreenContent(
             painter = painterResource(id = R.drawable.app_image),
             contentDescription = "Logo",
             modifier = Modifier
-                .size(120.dp)
+                .size(100.dp)
                 .clip(RoundedCornerShape(16.dp))
         )
 
@@ -88,18 +95,49 @@ private fun LoginScreenContent(
 
         // App Title
         Text(
-            text = "Plant Care",
-            fontSize = 32.sp,
+            text = "Crear Cuenta",
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
 
         Text(
-            text = "Tu jardín, siempre cuidado",
+            text = "Únete a nuestra comunidad plantover",
             fontSize = 16.sp,
             color = Color.Gray,
-            modifier = Modifier.padding(bottom = 48.dp)
+            modifier = Modifier.padding(bottom = 32.dp)
         )
+
+        // Full Name Field
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Nombre Completo",
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = fullName,
+                onValueChange = { fullName = it },
+                placeholder = { Text("Tu nombre aquí", color = Color.LightGray) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.LightGray
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Email Field
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -164,11 +202,44 @@ private fun LoginScreenContent(
             )
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Confirm Password Field
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Confirmar Contraseña",
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                placeholder = { Text("••••••••", color = Color.LightGray) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = Color.LightGray
+                )
+            )
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Login Button
+        // Register Button
         Button(
-            onClick = onLoginClick,
+            onClick = onCreateAccountClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -178,7 +249,7 @@ private fun LoginScreenContent(
             )
         ) {
             Text(
-                text = "Iniciar Sesión",
+                text = "Crear Cuenta",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -187,19 +258,19 @@ private fun LoginScreenContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Sign Up Navigation
+        // Back to Login Navigation
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "¿No tienes una cuenta?",
+                text = "¿Ya tienes una cuenta?",
                 fontSize = 14.sp,
                 color = Color.Gray
             )
-            TextButton(onClick = onSignUpClick) {
+            TextButton(onClick = onBackToLoginClick) {
                 Text(
-                    text = "Regístrate",
+                    text = "Inicia Sesión",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -211,8 +282,8 @@ private fun LoginScreenContent(
 
 @Preview(showBackground = true)
 @Composable
-private fun LoginScreenPreview() {
+private fun RegisterScreenPreview() {
     PlantCareAppTheme {
-        LoginScreenContent(onLoginClick = {}, onSignUpClick = {})
+        RegisterScreenContent(onCreateAccountClick = {}, onBackToLoginClick = {})
     }
 }

@@ -26,6 +26,7 @@ import com.example.plant_care_app.ui.screens.PlantDetailScreen
 import com.example.plant_care_app.ui.screens.AddPlantScreen
 import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
 import com.example.plant_care_app.ui.screens.LoginScreen
+import com.example.plant_care_app.ui.screens.RegisterScreen
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -47,6 +48,9 @@ private fun App(){
     NavHost(navController = navController, startDestination = "login") {
         composable("login") {
             LoginScreen(navController = navController)
+        }
+        composable("register") {
+            RegisterScreen(navController = navController)
         }
         composable("overview") {
             PlantsOverviewScreen(
