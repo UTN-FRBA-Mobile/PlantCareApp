@@ -36,15 +36,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.ui.components.PlantCard
 import com.example.plant_care_app.ui.models.PlantOverviewDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 
+data class PlantUi(
+    val name: String,
+    val location: String,
+    val humidity: Int,
+    val status: String
+)
+
 @Composable
-fun PlantsOverviewScreen(navController: NavController) {
+fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavController) {
 
     var plants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
 
@@ -55,7 +61,7 @@ fun PlantsOverviewScreen(navController: NavController) {
     PlantsOverviewContent(
         plants = plants,
         onPlantClick = { plantId -> navController.navigate("plant_detail/$plantId") },
-        onAddClick = { /* TODO */ }
+        onAddClick = onAddPlant
     )
 }
 
@@ -88,16 +94,14 @@ private fun PlantsOverviewContent(
             )
 
             Text(
-                text = "Mis Plantitas",
+                text = "Mis Plantas",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )
 
             Button(
-                onClick = {
-                    Toast.makeText(context, "Funcionalidad en desarrollo", Toast.LENGTH_LONG).show()
-                    onAddClick()
-                },
+                onClick = onAddClick,
+
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -122,6 +126,7 @@ private fun PlantsOverviewContent(
                     status = plant.statusLabel ?: "Sin lecturas",
                     onClick = { onPlantClick(plant.id) }
                 )
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }

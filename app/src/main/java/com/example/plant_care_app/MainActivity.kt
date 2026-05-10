@@ -23,6 +23,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.plant_care_app.ui.screens.PlantDetailScreen
+import com.example.plant_care_app.ui.screens.AddPlantScreen
 import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 
@@ -45,7 +46,7 @@ private fun App(){
     NavHost(navController = navController, startDestination = "overview") {
         composable("overview") {
             PlantsOverviewScreen(
-                navController = navController)
+                navController = navController, onAddPlant = { navController.navigate("add_plant") })
         }
         composable("plant_detail/{plantId}") { backStackEntry ->
             val plantId = backStackEntry.arguments?.getString("plantId") ?: ""
@@ -53,6 +54,9 @@ private fun App(){
                 plantId = plantId,
                 navController = navController
             )
+        }
+        composable("add_plant") {
+            AddPlantScreen(onBack = { navController.popBackStack() })
         }
     }
 }

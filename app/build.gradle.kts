@@ -59,9 +59,12 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
 
     //retrofit
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
 
     //coil (carga de imágenes desde URL)
     implementation(libs.coil.compose)
+
+    //material icons (extended)
+    implementation(libs.androidx.compose.material.icons.extended)
 }
