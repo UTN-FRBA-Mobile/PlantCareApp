@@ -44,17 +44,24 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.example.plant_care_app.R
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 
 @Composable
 fun RegisterScreen(navController: NavController) {
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     RegisterScreenContent(
-        onCreateAccountClick = {
-            // Lógica de registro (a implementar)
-            navController.navigate("overview") {
-                popUpTo("login") { inclusive = true }
+        errorMessage = errorMessage,
+        onCreateAccountClick = { fullName, email, password, confirmPassword ->
+            if (fullName.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+                errorMessage = "Por favor, completa todos los campos"
+            } else if (password != confirmPassword) {
+                errorMessage = "Las contraseñas no coinciden"
+            } else {
+                errorMessage = null
+                // Registro exitoso, volvemos al Login
+                navController.popBackStack()
             }
         },
         onBackToLoginClick = {
@@ -65,7 +72,8 @@ fun RegisterScreen(navController: NavController) {
 
 @Composable
 private fun RegisterScreenContent(
-    onCreateAccountClick: () -> Unit,
+    errorMessage: String?,
+    onCreateAccountClick: (String, String, String, String) -> Unit,
     onBackToLoginClick: () -> Unit
 ) {
     var fullName by remember { mutableStateOf("") }
@@ -107,6 +115,16 @@ private fun RegisterScreenContent(
             color = Color.Gray,
             modifier = Modifier.padding(bottom = 32.dp)
         )
+
+        // Error Message
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
 
         // Full Name Field
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -239,7 +257,7 @@ private fun RegisterScreenContent(
 
         // Register Button
         Button(
-            onClick = onCreateAccountClick,
+            onClick = { onCreateAccountClick(fullName, email, password, confirmPassword) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -284,6 +302,10 @@ private fun RegisterScreenContent(
 @Composable
 private fun RegisterScreenPreview() {
     PlantCareAppTheme {
-        RegisterScreenContent(onCreateAccountClick = {}, onBackToLoginClick = {})
+        RegisterScreenContent(
+            errorMessage = null,
+            onCreateAccountClick = { _, _, _, _ -> },
+            onBackToLoginClick = {}
+        )
     }
 }
