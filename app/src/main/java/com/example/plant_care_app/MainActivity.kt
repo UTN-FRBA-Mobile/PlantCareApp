@@ -25,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.plant_care_app.ui.screens.PlantDetailScreen
 import com.example.plant_care_app.ui.screens.AddPlantScreen
 import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
+import com.example.plant_care_app.ui.screens.LoginScreen
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -43,7 +44,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App(){
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "overview") {
+    NavHost(navController = navController, startDestination = "login") {
+        composable("login") {
+            LoginScreen(navController = navController)
+        }
         composable("overview") {
             PlantsOverviewScreen(
                 navController = navController, onAddPlant = { navController.navigate("add_plant") })
