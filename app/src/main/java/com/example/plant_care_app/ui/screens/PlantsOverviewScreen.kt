@@ -1,6 +1,11 @@
 package com.example.plant_care_app.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,9 +40,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.notifications.NotificationHelper
 import com.example.plant_care_app.ui.components.PlantCard
 import com.example.plant_care_app.ui.models.PlantOverviewDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
@@ -51,8 +58,24 @@ data class PlantUi(
 
 @Composable
 fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavController) {
-
+    val context = LocalContext.current
     var plants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
+
+    // Lanzador para solicitar el permiso de notificaciones
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Si se concede, mostramos la notificación inmediatamente
+            val notificationHelper = NotificationHelper(context)
+            notificationHelper.showNotification(
+                title = "Plant Reminder 🌱",
+                message = "Your plant needs watering"
+            )
+        } else {
+            Toast.makeText(context, "Permiso de notificaciones denegado", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(Unit) {
         plants = RetrofitClient.plantApi.getOverview()
@@ -61,7 +84,30 @@ fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavControll
     PlantsOverviewContent(
         plants = plants,
         onPlantClick = { plantId -> navController.navigate("plant_detail/$plantId") },
-        onAddClick = onAddPlant
+        onAddClick = onAddPlant,
+        onTestNotification = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Verificar si ya tenemos el permiso
+                when (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)) {
+                    PackageManager.PERMISSION_GRANTED -> {
+                        NotificationHelper(context).showNotification(
+                            title = "Plant Reminder 🌱",
+                            message = "Your plant needs watering"
+                        )
+                    }
+                    else -> {
+                        // Solicitar el permiso si no lo tenemos
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+            } else {
+                // En versiones anteriores a Android 13 no hace falta pedir permiso en tiempo de ejecución
+                NotificationHelper(context).showNotification(
+                    title = "Plant Reminder 🌱",
+                    message = "Your plant needs watering"
+                )
+            }
+        }
     )
 }
 
@@ -69,7 +115,8 @@ fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavControll
 private fun PlantsOverviewContent(
     plants: List<PlantOverviewDto>,
     onPlantClick: (String) -> Unit,
-    onAddClick: () -> Unit
+    onAddClick: () -> Unit,
+    onTestNotification: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -113,6 +160,19 @@ private fun PlantsOverviewContent(
                     color = Color.White
                 )
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Botón de prueba de notificación
+        Button(
+            onClick = onTestNotification,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary
+            )
+        ) {
+            Text(text = "🔔 Probar Notificación")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
