@@ -51,4 +51,15 @@ class NotificationHelper(private val context: Context) {
             }
         }
     }
+
+    /**
+     * Shows a dynamic notification for a specific plant.
+     * Example: "Monstera needs watering 🌱"
+     */
+    fun showPlantNotification(plantName: String, reminderMessage: String) {
+        showNotification(
+            title = "$plantName $reminderMessage 🌱",
+            message = "Recordatorio de cuidado de tu planta"
+        )
+    }
 }

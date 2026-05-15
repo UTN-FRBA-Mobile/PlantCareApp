@@ -44,7 +44,7 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
-import com.example.plant_care_app.notifications.NotificationHelper
+import com.example.plant_care_app.notifications.PlantReminderService
 import com.example.plant_care_app.ui.components.PlantCard
 import com.example.plant_care_app.ui.models.PlantOverviewDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
@@ -67,10 +67,10 @@ fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavControll
     ) { isGranted ->
         if (isGranted) {
             // Si se concede, mostramos la notificación inmediatamente
-            val notificationHelper = NotificationHelper(context)
-            notificationHelper.showNotification(
-                title = "Plant Reminder 🌱",
-                message = "Your plant needs watering"
+            val reminderService = PlantReminderService(context)
+            reminderService.sendPlantReminder(
+                plantName = "Monstera",
+                reminderMessage = "needs watering"
             )
         } else {
             Toast.makeText(context, "Permiso de notificaciones denegado", Toast.LENGTH_SHORT).show()
@@ -86,13 +86,14 @@ fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavControll
         onPlantClick = { plantId -> navController.navigate("plant_detail/$plantId") },
         onAddClick = onAddPlant,
         onTestNotification = {
+            val reminderService = PlantReminderService(context)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // Verificar si ya tenemos el permiso
                 when (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)) {
                     PackageManager.PERMISSION_GRANTED -> {
-                        NotificationHelper(context).showNotification(
-                            title = "Plant Reminder 🌱",
-                            message = "Your plant needs watering"
+                        reminderService.sendPlantReminder(
+                            plantName = "Monstera",
+                            reminderMessage = "needs watering"
                         )
                     }
                     else -> {
@@ -102,9 +103,9 @@ fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavControll
                 }
             } else {
                 // En versiones anteriores a Android 13 no hace falta pedir permiso en tiempo de ejecución
-                NotificationHelper(context).showNotification(
-                    title = "Plant Reminder 🌱",
-                    message = "Your plant needs watering"
+                reminderService.sendPlantReminder(
+                    plantName = "Monstera",
+                    reminderMessage = "needs watering"
                 )
             }
         }
