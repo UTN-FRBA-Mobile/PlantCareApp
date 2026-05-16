@@ -33,7 +33,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +49,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.ui.models.CreatePlantRequest
 import com.example.plant_care_app.ui.models.SensorDto
 
 private val GreenPrimary = Color(0xFF2E7D32)
@@ -56,11 +59,16 @@ private val GreenLight = Color(0xFFA5D6A7)
 fun AddPlantScreen(onBack: () -> Unit = {}) {
     val locations = listOf("Sala", "Balcón", "Living", "Habitación", "Parque")
 
+    val scope = rememberCoroutineScope()
+
     var sensors by remember { mutableStateOf<List<SensorDto>>(emptyList()) }
     var name by remember { mutableStateOf("") }
     var species by remember { mutableStateOf("") }
     var selectedLocation by remember { mutableStateOf("") }
-    var selectedSensor by remember { mutableStateOf("") }
+    var selectedSensorName by remember { mutableStateOf("") }
+    var selectedSensorId by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         sensors = RetrofitClient.plantApi.getSensors()
@@ -185,30 +193,76 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
 
         PlantDropdown(
             label = "Sensor",
-            placeholder = "Seleccionar sensor",
-            options = sensors.map { it.name },
-            selected = selectedSensor,
-            onSelected = { selectedSensor = it }
+            placeholder = "Sin sensor",
+            options = listOf("Sin sensor") + sensors.filter { it.status == "AVAILABLE" }.map { it.name },
+            selected = selectedSensorName,
+            onSelected = { name ->
+                selectedSensorName = name
+                selectedSensorId = sensors.find { it.name == name }?.id
+            }
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        if (errorMessage != null) {
+            Text(
+                text = errorMessage!!,
+                color = Color.Red,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
         Button(
-            onClick = onBack,
+            onClick = {
+                if (name.isBlank()) {
+                    errorMessage = "El nombre es obligatorio."
+                    return@Button
+                }
+                if (selectedLocation.isBlank()) {
+                    errorMessage = "Seleccioná una ubicación."
+                    return@Button
+                }
+                errorMessage = null
+                isLoading = true
+                scope.launch {
+                    try {
+                        RetrofitClient.plantApi.createPlant(
+                            CreatePlantRequest(
+                                name = name.trim(),
+                                species = species.trim(),
+                                location = selectedLocation,
+                                imageUrl = null,
+                                sensorId = selectedSensorId
+                            )
+                        )
+                        onBack()
+                    } catch (e: Exception) {
+                        errorMessage = "Error al guardar. Intentá de nuevo."
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            enabled = !isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
         ) {
-            Text(text = "🌱", fontSize = 18.sp)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Guardar planta",
-                fontSize = 16.sp,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold
-            )
+            if (isLoading) {
+                Text(text = "Guardando...", fontSize = 16.sp, color = Color.White)
+            } else {
+                Text(text = "🌱", fontSize = 18.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Guardar planta",
+                    fontSize = 16.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
