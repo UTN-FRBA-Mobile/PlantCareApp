@@ -4,6 +4,7 @@ import com.example.plant_care_app.ui.models.PlantDetailDto
 import com.example.plant_care_app.ui.models.PlantOverviewDto
 import com.example.plant_care_app.ui.models.PlantStatusDto
 import com.example.plant_care_app.ui.models.ReadingDto
+import com.example.plant_care_app.ui.models.SensorDto
 import retrofit2.http.GET
 import retrofit2.http.Path
 
@@ -20,4 +21,8 @@ interface PlantApiService {
 
     @GET("/api/plants/{plantId}/status")
     suspend fun getPlantStatus(@Path("plantId") plantId: String): PlantStatusDto
+
+
+    @GET("/api/sensors")
+    suspend fun getSensors(): List<SensorDto>
 }

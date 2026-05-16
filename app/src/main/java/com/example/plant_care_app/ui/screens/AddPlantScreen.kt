@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.ui.models.SensorDto
 
 private val GreenPrimary = Color(0xFF2E7D32)
 private val GreenLight = Color(0xFFA5D6A7)
@@ -52,12 +55,16 @@ private val GreenLight = Color(0xFFA5D6A7)
 @Composable
 fun AddPlantScreen(onBack: () -> Unit = {}) {
     val locations = listOf("Sala", "Balcón", "Living", "Habitación", "Parque")
-    val sensors = listOf("Sensor1", "Sensor2", "Sensor3")
 
+    var sensors by remember { mutableStateOf<List<SensorDto>>(emptyList()) }
     var name by remember { mutableStateOf("") }
     var species by remember { mutableStateOf("") }
     var selectedLocation by remember { mutableStateOf("") }
     var selectedSensor by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        sensors = RetrofitClient.plantApi.getSensors()
+    }
 
     Column(
         modifier = Modifier
@@ -179,7 +186,7 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
         PlantDropdown(
             label = "Sensor",
             placeholder = "Seleccionar sensor",
-            options = sensors,
+            options = sensors.map { it.name },
             selected = selectedSensor,
             onSelected = { selectedSensor = it }
         )
