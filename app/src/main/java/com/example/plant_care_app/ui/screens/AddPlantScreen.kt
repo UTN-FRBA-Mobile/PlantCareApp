@@ -1,6 +1,9 @@
 package com.example.plant_care_app.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,7 +43,12 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.core.content.FileProvider
+import coil.compose.AsyncImage
+import java.io.File
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -67,6 +75,26 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
 
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+
+    var photoUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var photoFile by remember { mutableStateOf<File?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) photoUri = photoFile?.let {
+            FileProvider.getUriForFile(context, "${context.packageName}.provider", it)
+        }
+    }
+
+    fun launchCamera() {
+        val dir = File(context.filesDir, "plant_images").also { it.mkdirs() }
+        val file = File(dir, "plant_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        photoFile = file
+        cameraLauncher.launch(uri)
+    }
 
     var sensors by remember { mutableStateOf<List<SensorDto>>(emptyList()) }
     var name by remember { mutableStateOf("") }
@@ -118,28 +146,40 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
             modifier = Modifier
                 .size(200.dp, 170.dp)
                 .clip(RoundedCornerShape(16.dp))
+                .clickable { launchCamera() }
                 .drawBehind {
-                    drawRoundRect(
-                        color = GreenLight,
-                        style = Stroke(
-                            width = 2.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 10f))
-                        ),
-                        cornerRadius = CornerRadius(16.dp.toPx())
-                    )
+                    if (photoUri == null) {
+                        drawRoundRect(
+                            color = GreenLight,
+                            style = Stroke(
+                                width = 2.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 10f))
+                            ),
+                            cornerRadius = CornerRadius(16.dp.toPx())
+                        )
+                    }
                 }
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "📷", fontSize = 40.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Tomar foto", color = GreenLight, fontSize = 14.sp)
+            if (photoUri != null) {
+                AsyncImage(
+                    model = photoUri,
+                    contentDescription = "Foto de la planta",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "📷", fontSize = 40.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "Tomar foto", color = GreenLight, fontSize = 14.sp)
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Tocá para usar la cámara",
+            text = if (photoUri != null) "Tocá para cambiar la foto" else "Tocá para usar la cámara",
             fontSize = 12.sp,
             color = Color.Gray
         )
