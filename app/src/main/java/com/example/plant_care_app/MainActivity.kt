@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.data.SessionManager
 import com.example.plant_care_app.ui.screens.PlantDetailScreen
 import com.example.plant_care_app.ui.screens.AddPlantScreen
 import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
@@ -33,6 +35,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        RetrofitClient.init(applicationContext)
         enableEdgeToEdge()
         setContent {
             PlantCareAppTheme {
@@ -45,7 +48,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App(){
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "login") {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val startDestination =
+        if (SessionManager.getToken(context) != null) "overview" else "login"
+
+    NavHost(navController = navController, startDestination = startDestination) {
         composable("login") {
             LoginScreen(navController = navController)
         }
@@ -54,7 +62,18 @@ private fun App(){
         }
         composable("overview") {
             PlantsOverviewScreen(
-                navController = navController, onAddPlant = { navController.navigate("add_plant") })
+                navController = navController,
+                onAddPlant = {
+                    navController.navigate("add_plant")
+                },
+                onLogout = {
+                    SessionManager.clearToken(context)
+
+                    navController.navigate("login") {
+                        popUpTo("overview") { inclusive = true }
+                    }
+                }
+            )
         }
         composable("plant_detail/{plantId}") { backStackEntry ->
             val plantId = backStackEntry.arguments?.getString("plantId") ?: ""

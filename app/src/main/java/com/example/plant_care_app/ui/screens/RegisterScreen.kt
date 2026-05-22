@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,11 +46,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
+import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.ui.models.RegisterRequest
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     RegisterScreenContent(
         errorMessage = errorMessage,
@@ -59,9 +65,32 @@ fun RegisterScreen(navController: NavController) {
             } else if (password != confirmPassword) {
                 errorMessage = "Las contraseñas no coinciden"
             } else {
-                errorMessage = null
-                // Registro exitoso, volvemos al Login
-                navController.popBackStack()
+                coroutineScope.launch {
+
+                    try {
+
+                        errorMessage = null
+
+                        RetrofitClient.authApi.register(
+                            RegisterRequest(
+                                name = fullName,
+                                email = email,
+                                password = password
+                            )
+                        )
+
+                        navController.navigate("login") {
+                            popUpTo("register") { inclusive = true }
+                        }
+
+                    } catch (e: Exception) {
+
+                        e.printStackTrace()
+
+                        errorMessage = e.message ?: "No se pudo registrar"
+
+                    }
+                }
             }
         },
         onBackToLoginClick = {

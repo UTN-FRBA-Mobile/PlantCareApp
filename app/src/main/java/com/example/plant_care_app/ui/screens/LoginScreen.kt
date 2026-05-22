@@ -1,5 +1,6 @@
 package com.example.plant_care_app.ui.screens
 
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -28,11 +29,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -43,22 +46,71 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.plant_care_app.R
+import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.ui.models.LoginRequest
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
+import kotlinx.coroutines.launch
+import androidx.core.content.edit
+import com.example.plant_care_app.data.SessionManager
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    var isLoading by remember { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
     LoginScreenContent(
         errorMessage = errorMessage,
         onLoginClick = { email, password ->
-            if (email.isNotEmpty() && password.isNotEmpty()) {
-                errorMessage = null
-                navController.navigate("overview") {
-                    popUpTo("login") { inclusive = true }
-                }
-            } else {
+
+            if (email.isBlank() || password.isBlank()) {
                 errorMessage = "Por favor, completa todos los campos"
+                return@LoginScreenContent
+            }
+
+            coroutineScope.launch {
+                try {
+                    isLoading = true
+                    errorMessage = null
+
+                    val response = RetrofitClient.authApi.login(
+                        LoginRequest(
+                            email = email,
+                            password = password
+                        )
+                    )
+
+                    SessionManager.saveToken(context, response.token)
+
+                    println("TOKEN: ${response.token}")
+
+                    val prefs = context.getSharedPreferences(
+                        "plant_care_prefs",
+                        Context.MODE_PRIVATE
+                    )
+
+                    prefs.edit {
+                        putString("token", response.token)
+                    }
+
+                    navController.navigate("overview") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                } catch (e: Exception) {
+                        e.printStackTrace()
+
+                        errorMessage = e.message ?: "Error desconocido"
+                 //   }
+                //} catch (e: Exception) {
+                  //  errorMessage = "No se pudo iniciar sesión"
+                } finally {
+                    isLoading = false
+                }
             }
         },
         onSignUpClick = {

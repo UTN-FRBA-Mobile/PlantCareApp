@@ -3,6 +3,7 @@ package com.example.plant_care_app.ui.screens
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,7 +51,11 @@ data class PlantUi(
 )
 
 @Composable
-fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavController) {
+fun PlantsOverviewScreen(
+    onAddPlant: () -> Unit = {},
+    onLogout: () -> Unit = {},
+    navController: NavController
+) {
 
     var plants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
 
@@ -61,7 +66,8 @@ fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavControll
     PlantsOverviewContent(
         plants = plants,
         onPlantClick = { plantId -> navController.navigate("plant_detail/$plantId") },
-        onAddClick = onAddPlant
+        onAddClick = onAddPlant,
+        onLogoutClick = onLogout
     )
 }
 
@@ -69,7 +75,8 @@ fun PlantsOverviewScreen(onAddPlant: () -> Unit = {}, navController: NavControll
 private fun PlantsOverviewContent(
     plants: List<PlantOverviewDto>,
     onPlantClick: (String) -> Unit,
-    onAddClick: () -> Unit
+    onAddClick: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -93,11 +100,22 @@ private fun PlantsOverviewContent(
                 modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp))
             )
 
-            Text(
-                text = "Mis Plantas",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Column {
+                Text(
+                    text = "Mis Plantas",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = "Cerrar sesión",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable {
+                        onLogoutClick()
+                    }
+                )
+            }
 
             Button(
                 onClick = onAddClick,
@@ -159,7 +177,8 @@ private fun PlantsOverviewContentPreview() {
                 ),
             ),
             onPlantClick = {},
-            onAddClick = {}
+            onAddClick = {},
+            onLogoutClick = {}
         )
     }
 }
