@@ -13,22 +13,22 @@ import retrofit2.http.Path
 
 interface PlantApiService {
 
-    @GET("/api/plants/overview")
+    @GET("api/plants/overview")
     suspend fun getOverview(): List<PlantOverviewDto>
 
-    @GET("/api/plants/{id}")
+    @GET("api/plants/{id}")
     suspend fun getPlantById(@Path("id") id: String): PlantDetailDto
 
-    @GET("/api/plants/{plantId}/readings")
+    @GET("api/plants/{plantId}/readings")
     suspend fun getReadings(@Path("plantId") plantId: String): List<ReadingDto>
 
-    @GET("/api/plants/{plantId}/status")
+    @GET("api/plants/{plantId}/status")
     suspend fun getPlantStatus(@Path("plantId") plantId: String): PlantStatusDto
 
 
-    @GET("/api/sensors")
+    @GET("api/sensors")
     suspend fun getSensors(): List<SensorDto>
 
-    @POST("/api/plants")
+    @POST("api/plants")
     suspend fun createPlant(@Body request: CreatePlantRequest): PlantDetailDto
 }

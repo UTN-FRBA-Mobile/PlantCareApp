@@ -3,15 +3,13 @@ package com.example.plant_care_app.data
 import android.content.Context
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import kotlin.getValue
-import kotlin.jvm.java
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 
 object RetrofitClient {
 
-    //private const val BASE_URL = "https://backend-riego-inteligente.onrender.com/"
-    private const val BASE_URL = "http://10.0.2.2:3000/"
+    private const val BASE_URL = "https://backend-riego-inteligente.onrender.com/"
+    //private const val BASE_URL = "http://10.0.2.2:3000/"
 
     private lateinit var appContext: Context
 
