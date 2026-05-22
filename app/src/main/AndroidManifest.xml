@@ -15,12 +15,7 @@
         android:theme="@style/Theme.PlantCareApp"
         android:usesCleartextTraffic="true">
 
-        <service
-            android:name=".data.AuthApiService"
-            android:enabled="true"
-            android:exported="true">
 
-        </service>
 
         <activity
             android:name=".MainActivity"
