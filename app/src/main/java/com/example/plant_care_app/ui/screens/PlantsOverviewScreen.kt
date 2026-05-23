@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.data.SessionManager
 import com.example.plant_care_app.ui.components.PlantCard
 import com.example.plant_care_app.ui.models.PlantOverviewDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
@@ -58,9 +59,24 @@ fun PlantsOverviewScreen(
 ) {
 
     var plants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        plants = RetrofitClient.plantApi.getOverview()
+        try {
+            plants = RetrofitClient.plantApi.getOverview()
+        } catch (e: retrofit2.HttpException) {
+            if (e.code() == 401) {
+                SessionManager.clearToken(context)
+
+                navController.navigate("login") {
+                    popUpTo("overview") { inclusive = true }
+                }
+            } else {
+                e.printStackTrace()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     PlantsOverviewContent(
