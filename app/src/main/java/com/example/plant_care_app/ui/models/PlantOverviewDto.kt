@@ -4,6 +4,7 @@ data class PlantOverviewDto(
     val id: String,
     val name: String,
     val location: String,
+    val imageUrl: String?,
     val sensorId: String?,
     val sensorName: String?,
     val hasSensor: Boolean,

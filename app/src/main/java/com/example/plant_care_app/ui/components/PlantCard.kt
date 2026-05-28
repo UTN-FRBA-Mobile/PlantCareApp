@@ -23,7 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.plant_care_app.R
+import java.io.File
 
 @Composable
 fun PlantCard(
@@ -31,6 +33,7 @@ fun PlantCard(
     location: String,
     humidity: Int,
     status: String,
+    imageUrl: String?,
     onClick: () -> Unit
 ) {
     val backgroundColor = when (status) {
@@ -57,12 +60,26 @@ fun PlantCard(
             modifier = Modifier.padding(16.dp)
         ) {
 
-            Image(
-                painter = painterResource(id = R.drawable.planta),
-                contentDescription = "Planta",
-                modifier = Modifier.size(80.dp).clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
+            if (!imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = File(imageUrl),
+
+                    contentDescription = "Planta",
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.planta),
+                    contentDescription = "Planta",
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -95,9 +112,11 @@ fun PlantCard(
 @Preview(showBackground = true)
 @Composable
 fun PlantCardPreview() {
-    PlantCard("Clotilde",
+    PlantCard(
+        "Clotilde",
         "Balcón detrás",
         62,
-        "Estoy Bien!"
+        "Estoy Bien!",
+        null
     ) {}
 }
