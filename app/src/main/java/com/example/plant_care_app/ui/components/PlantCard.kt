@@ -1,6 +1,5 @@
 package com.example.plant_care_app.ui.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,17 +17,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.plant_care_app.R
-import java.io.File
+import com.example.plant_care_app.utils.PlantImageResolver
 
 @Composable
 fun PlantCard(
+    plantId: String,
     name: String,
     location: String,
     humidity: Int,
@@ -47,6 +47,13 @@ fun PlantCard(
         else -> Color(0xFFE0E0E0)
     }
 
+    val context = LocalContext.current
+    val imageModel = PlantImageResolver.resolve(
+        context = context,
+        plantId = plantId,
+        imageUrl = imageUrl
+    )
+
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -60,26 +67,14 @@ fun PlantCard(
             modifier = Modifier.padding(16.dp)
         ) {
 
-            if (!imageUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = File(imageUrl),
-
-                    contentDescription = "Planta",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.planta),
-                    contentDescription = "Planta",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            }
+            AsyncImage(
+                model = imageModel ?: R.drawable.planta,
+                contentDescription = "Planta",
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
 
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -113,10 +108,11 @@ fun PlantCard(
 @Composable
 fun PlantCardPreview() {
     PlantCard(
-        "Clotilde",
-        "Balcón detrás",
-        62,
-        "Estoy Bien!",
-        null
+        plantId = "1",
+        name = "Clotilde",
+        location = "Balcón detrás",
+        humidity = 62,
+        status = "Estoy Bien!",
+        imageUrl = null
     ) {}
 }

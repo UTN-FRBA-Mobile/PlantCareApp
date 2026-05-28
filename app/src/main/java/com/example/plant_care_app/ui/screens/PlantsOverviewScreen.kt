@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
-import com.example.plant_care_app.data.PlantImageStore
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.data.SessionManager
 import com.example.plant_care_app.ui.components.PlantCard
@@ -94,8 +93,6 @@ private fun PlantsOverviewContent(
     onAddClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
-    val context = LocalContext.current
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -153,13 +150,13 @@ private fun PlantsOverviewContent(
 
         LazyColumn {
             items(plants) { plant ->
-                val localImagePath = PlantImageStore.getImagePath(context, plant.id)
                 PlantCard(
+                    plantId = plant.id,
                     name = plant.name,
                     location = plant.location,
                     humidity = plant.soilMoisture ?: 0,
                     status = plant.statusLabel ?: "Sin lecturas",
-                    imageUrl = localImagePath,
+                    imageUrl = plant.imageUrl,
                     onClick = { onPlantClick(plant.id) },
                 )
 

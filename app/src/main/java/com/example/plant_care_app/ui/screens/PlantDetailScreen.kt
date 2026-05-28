@@ -50,7 +50,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.plant_care_app.R
@@ -61,6 +60,7 @@ import com.example.plant_care_app.ui.models.PlantStatusDto
 import com.example.plant_care_app.ui.models.ReadingDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import com.example.plant_care_app.utils.PlantImageFileManager
+import com.example.plant_care_app.utils.PlantImageResolver
 import java.io.File
 
 @Composable
@@ -96,6 +96,8 @@ private fun PlantDetailContent(
     val context = LocalContext.current
 
     var photoFile by remember { mutableStateOf<File?>(null) }
+
+    // Estado local para refrescar la imagen apenas el usuario toma o elige una foto.
     var localImagePath by remember(plant?.id) {
         mutableStateOf(
             plant?.id?.let { PlantImageStore.getImagePath(context, it) }
@@ -197,8 +199,17 @@ private fun PlantDetailContent(
         ) {
 
             item {
+                val imageModel = plant?.let {
+                    PlantImageResolver.resolve(
+                        context = context,
+                        plantId = it.id,
+                        imageUrl = it.imageUrl,
+                        localImagePath = localImagePath
+                    )
+                }
+
                 AsyncImage(
-                    model = localImagePath?.let { File(it) },
+                    model = imageModel ?: R.drawable.planta,
                     contentDescription = plant?.name,
                     modifier = Modifier
                         .fillMaxWidth()
