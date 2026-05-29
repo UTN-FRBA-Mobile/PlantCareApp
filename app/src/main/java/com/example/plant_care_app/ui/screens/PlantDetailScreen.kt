@@ -1,5 +1,7 @@
 package com.example.plant_care_app.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -37,9 +39,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.Image
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -48,11 +53,15 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.plant_care_app.R
+import com.example.plant_care_app.data.PlantImageStore
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.ui.models.PlantDetailDto
 import com.example.plant_care_app.ui.models.PlantStatusDto
 import com.example.plant_care_app.ui.models.ReadingDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
+import com.example.plant_care_app.utils.PlantImageFileManager
+import com.example.plant_care_app.utils.PlantImageResolver
+import java.io.File
 
 @Composable
 fun PlantDetailScreen(plantId: String, navController: NavController) {
@@ -84,6 +93,68 @@ private fun PlantDetailContent(
     status: PlantStatusDto?,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    var photoFile by remember { mutableStateOf<File?>(null) }
+
+    // Estado local para refrescar la imagen apenas el usuario toma o elige una foto.
+    var localImagePath by remember(plant?.id) {
+        mutableStateOf(
+            plant?.id?.let { PlantImageStore.getImagePath(context, it) }
+        )
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && plant?.id != null && photoFile != null) {
+            PlantImageStore.saveImagePath(
+                context = context,
+                plantId = plant.id,
+                imagePath = photoFile!!.absolutePath
+            )
+
+            localImagePath = photoFile!!.absolutePath
+        }
+    }
+
+    fun launchCamera() {
+        val currentPlantId = plant?.id ?: return
+
+        val file = PlantImageFileManager.createImageFile(
+            context = context,
+            plantId = currentPlantId
+        )
+
+        val uri = PlantImageFileManager.getUriForFile(context, file)
+
+        photoFile = file
+        cameraLauncher.launch(uri)
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+
+        val currentPlantId = plant?.id ?: return@rememberLauncherForActivityResult
+
+        if (uri != null) {
+
+            val file = PlantImageFileManager.copyUriToPlantImageFile(
+                context = context,
+                uri = uri,
+                plantId = currentPlantId
+            )
+
+            PlantImageStore.saveImagePath(
+                context = context,
+                plantId = currentPlantId,
+                imagePath = file.absolutePath
+            )
+
+            localImagePath = file.absolutePath
+        }
+    }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -128,8 +199,17 @@ private fun PlantDetailContent(
         ) {
 
             item {
+                val imageModel = plant?.let {
+                    PlantImageResolver.resolve(
+                        context = context,
+                        plantId = it.id,
+                        imageUrl = it.imageUrl,
+                        localImagePath = localImagePath
+                    )
+                }
+
                 AsyncImage(
-                    model = plant?.imageUrl,
+                    model = imageModel ?: R.drawable.planta,
                     contentDescription = plant?.name,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -139,6 +219,50 @@ private fun PlantDetailContent(
                     placeholder = painterResource(R.drawable.planta),
                     error = painterResource(R.drawable.planta)
                 )
+            }
+
+            item {
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+
+                    Button(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2E7D32)
+                        )
+                    ) {
+                        Text(
+                            text = if (localImagePath == null)
+                                "Tomar foto"
+                            else
+                                "Actualizar con cámara",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            galleryLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF558B2F)
+                        )
+                    ) {
+                        Text(
+                            text = if (localImagePath == null)
+                                "Elegir desde galería"
+                            else
+                                "Actualizar desde galería",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
 
             item {

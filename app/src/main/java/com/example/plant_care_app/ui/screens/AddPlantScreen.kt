@@ -46,7 +46,6 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import java.io.File
 import androidx.compose.foundation.text.KeyboardActions
@@ -62,9 +61,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.plant_care_app.data.PlantImageStore
 import com.example.plant_care_app.data.RetrofitClient
-import com.example.plant_care_app.ui.models.CreatePlantRequest
 import com.example.plant_care_app.ui.models.SensorDto
+import com.example.plant_care_app.utils.PlantImageFileManager
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 private val GreenPrimary = Color(0xFF2E7D32)
 private val GreenLight = Color(0xFFA5D6A7)
@@ -83,15 +87,24 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success) photoUri = photoFile?.let {
-            FileProvider.getUriForFile(context, "${context.packageName}.provider", it)
+        if (success) {
+            photoUri = photoFile?.let { PlantImageFileManager.getUriForFile(context, it) }
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            photoUri = uri
+            photoFile = PlantImageFileManager.copyUriToPlantImageFile(context, uri)
         }
     }
 
     fun launchCamera() {
-        val dir = File(context.filesDir, "plant_images").also { it.mkdirs() }
-        val file = File(dir, "plant_${System.currentTimeMillis()}.jpg")
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        val file = PlantImageFileManager.createImageFile(context)
+        val uri = PlantImageFileManager.getUriForFile(context, file)
+
         photoFile = file
         cameraLauncher.launch(uri)
     }
@@ -283,18 +296,37 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
                 isLoading = true
                 scope.launch {
                     try {
-                        RetrofitClient.plantApi.createPlant(
-                            CreatePlantRequest(
-                                name = name.trim(),
-                                species = species.trim(),
-                                location = selectedLocation,
-                                imageUrl = null,
-                                sensorId = selectedSensorId
+                        // Se obtiene la imagen de la planta
+                        val imagePlant = photoFile?.let { file ->
+                            val requestFile = file.asRequestBody("image/jpeg".toMediaType())
+
+                            MultipartBody.Part.createFormData(
+                                name = "image",
+                                filename = file.name,
+                                body = requestFile
                             )
+                        }
+
+                        val createdPlant = RetrofitClient.plantApi.createPlant(
+                            image = imagePlant,
+                            name = name.trim().toRequestBody("text/plain".toMediaType()),
+                            species = species.trim().toRequestBody("text/plain".toMediaType()),
+                            location = selectedLocation.toRequestBody("text/plain".toMediaType()),
+                            sensorId = (selectedSensorId ?: "").toRequestBody("text/plain".toMediaType())
                         )
+
+                        photoFile?.let { file ->
+                            PlantImageStore.saveImagePath(
+                                context = context,
+                                plantId = createdPlant.id,
+                                imagePath = file.absolutePath
+                            )
+                        }
+
                         onBack()
                     } catch (e: Exception) {
-                        errorMessage = "Error al guardar. Intentá de nuevo."
+                        e.printStackTrace()
+                        errorMessage = e.message ?: "Error al guardar. Intentá de nuevo."
                     } finally {
                         isLoading = false
                     }

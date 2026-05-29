@@ -1,6 +1,5 @@
 package com.example.plant_care_app.ui.screens
 
-import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -56,7 +55,6 @@ import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.ui.models.LoginRequest
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import kotlinx.coroutines.launch
-import androidx.core.content.edit
 import com.example.plant_care_app.data.SessionManager
 
 @Composable

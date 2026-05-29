@@ -1,6 +1,5 @@
 package com.example.plant_care_app.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -94,8 +93,6 @@ private fun PlantsOverviewContent(
     onAddClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
-    val context = LocalContext.current
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -154,11 +151,13 @@ private fun PlantsOverviewContent(
         LazyColumn {
             items(plants) { plant ->
                 PlantCard(
+                    plantId = plant.id,
                     name = plant.name,
                     location = plant.location,
                     humidity = plant.soilMoisture ?: 0,
                     status = plant.statusLabel ?: "Sin lecturas",
-                    onClick = { onPlantClick(plant.id) }
+                    imageUrl = plant.imageUrl,
+                    onClick = { onPlantClick(plant.id) },
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -174,19 +173,19 @@ private fun PlantsOverviewContentPreview() {
         PlantsOverviewContent(
             plants = listOf(
                 PlantOverviewDto(
-                    id = "1", name = "Albahaca", location = "Balcón",
+                    id = "1", name = "Albahaca", location = "Balcón", null,
                     sensorId = "s1", sensorName = "Sensor 1", hasSensor = true,
                     soilMoisture = 65, readAt = "2026-05-09T10:00:00.000Z",
                     recommendation = null, urgency = null, statusLabel = "Saludable"
                 ),
                 PlantOverviewDto(
-                    id = "2", name = "Lavanda", location = "Ventana",
+                    id = "2", name = "Lavanda", location = "Ventana", null,
                     sensorId = null, sensorName = null, hasSensor = false,
                     soilMoisture = 28, readAt = "2026-05-08T10:00:00.000Z",
                     recommendation = null, urgency = null, statusLabel = "Estres alto"
                 ),
                 PlantOverviewDto(
-                    id = "3", name = "Romero", location = "Jardín",
+                    id = "3", name = "Romero", location = "Jardín", null,
                     sensorId = "s2", sensorName = "Sensor 2", hasSensor = true,
                     soilMoisture = 45, readAt = "2026-05-07T10:00:00.000Z",
                     recommendation = null, urgency = null, statusLabel = "Estres moderado"
