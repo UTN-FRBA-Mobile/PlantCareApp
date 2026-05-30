@@ -1,6 +1,7 @@
 package com.example.plant_care_app.data
 
 import android.content.Context
+import android.util.Log
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import okhttp3.Interceptor
@@ -8,13 +9,10 @@ import okhttp3.OkHttpClient
 
 object RetrofitClient {
 
-    // URL base del backend
-    const val BASE_URL = "https://backend-riego-inteligente.onrender.com/"
-    //const val BASE_URL = "https://backend-plantcare-dev.onrender.com/"
-    //const val BASE_URL = "http://10.0.2.2:3000/"
+    private const val TAG = "RetrofitClient"
 
-    // Android real en tu Wi-Fi:
-    //const val BASE_URL = "http://192.168.100.3:3000/"
+    // URL base del backend configurada por variante de build.
+    val BASE_URL: String = AppConfig.BASE_URL
 
     private lateinit var appContext: Context
 
@@ -44,6 +42,8 @@ object RetrofitClient {
 
     // Instancia unica de Retrofit para compartir configuracion, base URL y autenticacion.
     private val retrofit: Retrofit by lazy {
+        Log.d(TAG, "Using BASE_URL: $BASE_URL")
+
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(client)
