@@ -1,5 +1,11 @@
 package com.example.plant_care_app.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LocalFlorist
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -49,10 +56,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.data.SessionManager
+import com.example.plant_care_app.notifications.PlantReminderService
 import com.example.plant_care_app.ui.components.PlantCard
 import com.example.plant_care_app.ui.models.PlantOverviewDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
@@ -70,6 +79,36 @@ fun PlantsOverviewScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+
+    fun showTestNotification() {
+        PlantReminderService(context).sendPlantReminder(
+            plantName = "Monstera",
+            reminderMessage = "necesita riego"
+        )
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            showTestNotification()
+        } else {
+            Toast.makeText(context, "Permiso de notificaciones denegado", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun requestTestNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            showTestNotification()
+        }
+    }
 
     suspend fun refreshPlants() {
         isRefreshing = true
@@ -107,7 +146,8 @@ fun PlantsOverviewScreen(
         },
         onPlantClick = { plantId -> navController.navigate("plant_detail/$plantId") },
         onAddClick = onAddPlant,
-        onLogoutClick = onLogout
+        onLogoutClick = onLogout,
+        onTestNotificationClick = ::requestTestNotification
     )
 }
 
@@ -119,7 +159,8 @@ private fun PlantsOverviewContent(
     onRefresh: () -> Unit,
     onPlantClick: (String) -> Unit,
     onAddClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onTestNotificationClick: () -> Unit
 ) {
     val plantsRequiringAttention = plants.filter { it.requiresAttention() }
     val connectedSensors = plants.count { it.hasSensor }
@@ -155,7 +196,8 @@ private fun PlantsOverviewContent(
             ) {
                 item {
                     OverviewHeader(
-                        onLogoutClick = onLogoutClick
+                        onLogoutClick = onLogoutClick,
+                        onTestNotificationClick = onTestNotificationClick
                     )
                 }
 
@@ -212,7 +254,8 @@ private fun PlantsOverviewContent(
 
 @Composable
 private fun OverviewHeader(
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onTestNotificationClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -251,12 +294,22 @@ private fun OverviewHeader(
             }
         }
 
-        IconButton(onClick = onLogoutClick) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Logout,
-                contentDescription = "Cerrar sesion",
-                tint = MaterialTheme.colorScheme.primary
-            )
+        Row {
+            IconButton(onClick = onTestNotificationClick) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Probar notificacion",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            IconButton(onClick = onLogoutClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = "Cerrar sesion",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
@@ -480,7 +533,8 @@ private fun PlantsOverviewContentPreview() {
             isRefreshing = false,
             onRefresh = {},
             onAddClick = {},
-            onLogoutClick = {}
+            onLogoutClick = {},
+            onTestNotificationClick = {}
         )
     }
 }
