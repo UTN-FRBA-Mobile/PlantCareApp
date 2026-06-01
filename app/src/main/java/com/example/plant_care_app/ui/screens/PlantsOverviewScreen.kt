@@ -26,7 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LocalFlorist
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -59,8 +58,10 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
+import com.example.plant_care_app.data.NotificationPreferenceStore
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.data.SessionManager
+import com.example.plant_care_app.notifications.PlantAlertNotificationManager
 import com.example.plant_care_app.notifications.PlantReminderService
 import com.example.plant_care_app.ui.components.PlantCard
 import com.example.plant_care_app.ui.models.PlantOverviewDto
@@ -77,36 +78,51 @@ fun PlantsOverviewScreen(
 ) {
     var plants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var pendingAlertPlants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-
-    fun showTestNotification() {
-        PlantReminderService(context).sendPlantReminder(
-            plantName = "Monstera",
-            reminderMessage = "necesita riego"
+    val notificationStore = remember { NotificationPreferenceStore(context.applicationContext) }
+    val plantAlertNotificationManager = remember {
+        PlantAlertNotificationManager(
+            notificationStore = notificationStore,
+            plantReminderService = PlantReminderService(context.applicationContext)
         )
     }
 
+    // Launcher de Compose para pedir el permiso de notificaciones en Android 13+.
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            showTestNotification()
+            plantAlertNotificationManager.notifyHighStressPlants(pendingAlertPlants)
         } else {
             Toast.makeText(context, "Permiso de notificaciones denegado", Toast.LENGTH_SHORT).show()
         }
+
+        pendingAlertPlants = emptyList()
     }
 
-    fun requestTestNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+    // Revisa el overview cargado y dispara alertas locales solo para plantas en estres alto.
+    fun processPlantAlertNotifications(overviewPlants: List<PlantOverviewDto>) {
+        val alertPlants = plantAlertNotificationManager.getPendingHighStressAlerts(overviewPlants)
+
+        if (alertPlants.isEmpty()) {
+            return
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
+            ) == PackageManager.PERMISSION_GRANTED
         ) {
+            plantAlertNotificationManager.notifyHighStressPlants(alertPlants)
+        } else if (!notificationStore.hasAskedNotificationPermission()) {
+            pendingAlertPlants = alertPlants
+            notificationStore.markNotificationPermissionAsked()
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
-            showTestNotification()
+            pendingAlertPlants = emptyList()
         }
     }
 
@@ -116,6 +132,7 @@ fun PlantsOverviewScreen(
         when (val result = loadPlantsOverview()) {
             is PlantsOverviewLoadResult.Success -> {
                 plants = result.plants
+                processPlantAlertNotifications(result.plants)
             }
 
             PlantsOverviewLoadResult.Unauthorized -> {
@@ -146,8 +163,7 @@ fun PlantsOverviewScreen(
         },
         onPlantClick = { plantId -> navController.navigate("plant_detail/$plantId") },
         onAddClick = onAddPlant,
-        onLogoutClick = onLogout,
-        onTestNotificationClick = ::requestTestNotification
+        onLogoutClick = onLogout
     )
 }
 
@@ -159,8 +175,7 @@ private fun PlantsOverviewContent(
     onRefresh: () -> Unit,
     onPlantClick: (String) -> Unit,
     onAddClick: () -> Unit,
-    onLogoutClick: () -> Unit,
-    onTestNotificationClick: () -> Unit
+    onLogoutClick: () -> Unit
 ) {
     val plantsRequiringAttention = plants.filter { it.requiresAttention() }
     val connectedSensors = plants.count { it.hasSensor }
@@ -196,8 +211,7 @@ private fun PlantsOverviewContent(
             ) {
                 item {
                     OverviewHeader(
-                        onLogoutClick = onLogoutClick,
-                        onTestNotificationClick = onTestNotificationClick
+                        onLogoutClick = onLogoutClick
                     )
                 }
 
@@ -254,8 +268,7 @@ private fun PlantsOverviewContent(
 
 @Composable
 private fun OverviewHeader(
-    onLogoutClick: () -> Unit,
-    onTestNotificationClick: () -> Unit
+    onLogoutClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -294,22 +307,12 @@ private fun OverviewHeader(
             }
         }
 
-        Row {
-            IconButton(onClick = onTestNotificationClick) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Probar notificacion",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            IconButton(onClick = onLogoutClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = "Cerrar sesion",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+        IconButton(onClick = onLogoutClick) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Logout,
+                contentDescription = "Cerrar sesion",
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -533,8 +536,7 @@ private fun PlantsOverviewContentPreview() {
             isRefreshing = false,
             onRefresh = {},
             onAddClick = {},
-            onLogoutClick = {},
-            onTestNotificationClick = {}
+            onLogoutClick = {}
         )
     }
 }
