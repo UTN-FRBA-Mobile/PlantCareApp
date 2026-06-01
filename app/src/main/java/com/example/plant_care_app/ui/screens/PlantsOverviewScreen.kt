@@ -1,5 +1,11 @@
 package com.example.plant_care_app.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -49,10 +55,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
+import com.example.plant_care_app.data.NotificationPreferenceStore
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.data.SessionManager
+import com.example.plant_care_app.notifications.PlantAlertNotificationManager
+import com.example.plant_care_app.notifications.PlantReminderService
 import com.example.plant_care_app.ui.components.PlantCard
 import com.example.plant_care_app.ui.models.PlantOverviewDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
@@ -68,8 +78,53 @@ fun PlantsOverviewScreen(
 ) {
     var plants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var pendingAlertPlants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val notificationStore = remember { NotificationPreferenceStore(context.applicationContext) }
+    val plantAlertNotificationManager = remember {
+        PlantAlertNotificationManager(
+            notificationStore = notificationStore,
+            plantReminderService = PlantReminderService(context.applicationContext)
+        )
+    }
+
+    // Launcher de Compose para pedir el permiso de notificaciones en Android 13+.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            plantAlertNotificationManager.notifyHighStressPlants(pendingAlertPlants)
+        } else {
+            Toast.makeText(context, "Permiso de notificaciones denegado", Toast.LENGTH_SHORT).show()
+        }
+
+        pendingAlertPlants = emptyList()
+    }
+
+    // Revisa el overview cargado y dispara alertas locales solo para plantas en estres alto.
+    fun processPlantAlertNotifications(overviewPlants: List<PlantOverviewDto>) {
+        val alertPlants = plantAlertNotificationManager.getPendingHighStressAlerts(overviewPlants)
+
+        if (alertPlants.isEmpty()) {
+            return
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            plantAlertNotificationManager.notifyHighStressPlants(alertPlants)
+        } else if (!notificationStore.hasAskedNotificationPermission()) {
+            pendingAlertPlants = alertPlants
+            notificationStore.markNotificationPermissionAsked()
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            pendingAlertPlants = emptyList()
+        }
+    }
 
     suspend fun refreshPlants() {
         isRefreshing = true
@@ -77,6 +132,7 @@ fun PlantsOverviewScreen(
         when (val result = loadPlantsOverview()) {
             is PlantsOverviewLoadResult.Success -> {
                 plants = result.plants
+                processPlantAlertNotifications(result.plants)
             }
 
             PlantsOverviewLoadResult.Unauthorized -> {
