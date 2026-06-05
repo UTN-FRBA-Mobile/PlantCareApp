@@ -26,10 +26,13 @@ import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.data.SessionManager
 import com.example.plant_care_app.ui.screens.PlantDetailScreen
 import com.example.plant_care_app.ui.screens.AddPlantScreen
+import com.example.plant_care_app.ui.screens.PlantDetailEvaluationScreen
 import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
 import com.example.plant_care_app.ui.screens.LoginScreen
 import com.example.plant_care_app.ui.screens.RegisterScreen
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
 
@@ -84,6 +87,21 @@ private fun App(){
         }
         composable("add_plant") {
             AddPlantScreen(onBack = { navController.popBackStack() })
+        }
+        composable(
+            route = "plant_evaluations/{name}/{type}",
+            arguments = listOf(
+                navArgument("name") { type = NavType.StringType },
+                navArgument("type") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val name = backStackEntry.arguments?.getString("name") ?: "Planta"
+            val type = backStackEntry.arguments?.getString("type") ?: "Especie"
+            PlantDetailEvaluationScreen(
+                navController = navController,
+                plantName = name,
+                plantType = type
+            )
         }
     }
 }
