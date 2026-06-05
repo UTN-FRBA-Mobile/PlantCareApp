@@ -89,16 +89,19 @@ private fun App(){
             AddPlantScreen(onBack = { navController.popBackStack() })
         }
         composable(
-            route = "plant_evaluations/{name}/{type}",
+            route = "plant_evaluations/{plantId}/{name}/{type}",
             arguments = listOf(
+                navArgument("plantId") { type = NavType.StringType },
                 navArgument("name") { type = NavType.StringType },
                 navArgument("type") { type = NavType.StringType }
             )
         ) { backStackEntry ->
+            val plantId = backStackEntry.arguments?.getString("plantId") ?: ""
             val name = backStackEntry.arguments?.getString("name") ?: "Planta"
             val type = backStackEntry.arguments?.getString("type") ?: "Especie"
             PlantDetailEvaluationScreen(
                 navController = navController,
+                plantId = plantId,
                 plantName = name,
                 plantType = type
             )

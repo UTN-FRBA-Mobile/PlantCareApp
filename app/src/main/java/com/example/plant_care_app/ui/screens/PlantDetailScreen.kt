@@ -82,8 +82,8 @@ fun PlantDetailScreen(plantId: String, navController: NavController) {
         readings = readings,
         status = status,
         onBack = { navController.popBackStack() },
-        onEvaluationsClick = { name, species ->
-            navController.navigate("plant_evaluations/$name/$species")
+        onEvaluationsClick = { id, name, species ->
+            navController.navigate("plant_evaluations/$id/$name/$species")
         }
     )
 }
@@ -95,7 +95,7 @@ private fun PlantDetailContent(
     readings: List<ReadingDto>,
     status: PlantStatusDto?,
     onBack: () -> Unit,
-    onEvaluationsClick: (String, String) -> Unit
+    onEvaluationsClick: (String, String, String) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -311,7 +311,7 @@ private fun PlantDetailContent(
                         label = "Evaluaciones",
                         modifier = Modifier.weight(1f),
                         onClick = {
-                            onEvaluationsClick(plant?.name ?: "Planta", plant?.species ?: "Especie")
+                            onEvaluationsClick(plant?.id ?: "", plant?.name ?: "Planta", plant?.species ?: "Especie")
                         }
                     )
                 }
@@ -502,7 +502,7 @@ private fun PlantDetailContentPreview() {
                 explanation = "La planta está en buen estado. Mantené el riego actual."
             ),
             onBack = {},
-            onEvaluationsClick = { _, _ -> }
+            onEvaluationsClick = { _, _, _ -> }
         )
     }
 }
