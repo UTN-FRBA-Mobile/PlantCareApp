@@ -163,7 +163,8 @@ fun PlantsOverviewScreen(
         },
         onPlantClick = { plantId -> navController.navigate("plant_detail/$plantId") },
         onAddClick = onAddPlant,
-        onLogoutClick = onLogout
+        onLogoutClick = onLogout,
+        onSensorsClick = { navController.navigate("sensors") }
     )
 }
 
@@ -175,7 +176,8 @@ private fun PlantsOverviewContent(
     onRefresh: () -> Unit,
     onPlantClick: (String) -> Unit,
     onAddClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onSensorsClick: () -> Unit = {}
 ) {
     val plantsRequiringAttention = plants.filter { it.requiresAttention() }
     val connectedSensors = plants.count { it.hasSensor }
@@ -211,7 +213,8 @@ private fun PlantsOverviewContent(
             ) {
                 item {
                     OverviewHeader(
-                        onLogoutClick = onLogoutClick
+                        onLogoutClick = onLogoutClick,
+                        onSensorsClick = onSensorsClick
                     )
                 }
 
@@ -268,7 +271,8 @@ private fun PlantsOverviewContent(
 
 @Composable
 private fun OverviewHeader(
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onSensorsClick: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -307,6 +311,13 @@ private fun OverviewHeader(
             }
         }
 
+        IconButton(onClick = onSensorsClick) {
+            Icon(
+                imageVector = Icons.Default.Sensors,
+                contentDescription = "Gestionar sensores",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
         IconButton(onClick = onLogoutClick) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Logout,

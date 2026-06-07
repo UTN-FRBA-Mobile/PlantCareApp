@@ -72,8 +72,7 @@ fun PlantDetailScreen(plantId: String, navController: NavController) {
 
     LaunchedEffect(plantId) {
         plant = RetrofitClient.plantApi.getPlantById(plantId)
-        readings = RetrofitClient.plantApi.getReadings(plantId)
-            .sortedByDescending { it.readAt }
+        readings = RetrofitClient.plantApi.getReadings(plantId).sortedByDescending { it.readAt }
         status = RetrofitClient.plantApi.getPlantStatus(plantId)
     }
 
@@ -336,6 +335,7 @@ private fun PlantDetailContent(
             }
         }
     }
+
 }
 
 @Composable

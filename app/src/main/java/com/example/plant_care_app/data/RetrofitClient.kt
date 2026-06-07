@@ -1,6 +1,7 @@
 package com.example.plant_care_app.data
 
 import android.content.Context
+import com.google.gson.GsonBuilder
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import okhttp3.Interceptor
@@ -44,10 +45,11 @@ object RetrofitClient {
 
     // Instancia unica de Retrofit para compartir configuracion, base URL y autenticacion.
     private val retrofit: Retrofit by lazy {
+        val gson = GsonBuilder().serializeNulls().create()
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 
