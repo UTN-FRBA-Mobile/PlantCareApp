@@ -24,12 +24,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.data.SessionManager
+import com.example.plant_care_app.ui.screens.AddEditSensorScreen
 import com.example.plant_care_app.ui.screens.PlantDetailScreen
 import com.example.plant_care_app.ui.screens.AddPlantScreen
 import com.example.plant_care_app.ui.screens.PlantDetailEvaluationScreen
 import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
 import com.example.plant_care_app.ui.screens.LoginScreen
 import com.example.plant_care_app.ui.screens.RegisterScreen
+import com.example.plant_care_app.ui.screens.SensorsListScreen
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -87,6 +89,28 @@ private fun App(){
         }
         composable("add_plant") {
             AddPlantScreen(onBack = { navController.popBackStack() })
+        }
+        composable("sensors") {
+            SensorsListScreen(
+                onAddSensor = { navController.navigate("add_sensor") },
+                onEditSensor = { id -> navController.navigate("edit_sensor/$id") },
+                onBack = { navController.popBackStack() },
+                onSessionExpired = {
+                    navController.navigate("login") {
+                        popUpTo("overview") { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable("add_sensor") {
+            AddEditSensorScreen(sensorId = null, onBack = { navController.popBackStack() })
+        }
+        composable(
+            route = "edit_sensor/{sensorId}",
+            arguments = listOf(navArgument("sensorId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val sensorId = backStackEntry.arguments?.getString("sensorId") ?: ""
+            AddEditSensorScreen(sensorId = sensorId, onBack = { navController.popBackStack() })
         }
         composable(
             route = "plant_evaluations/{plantId}/{name}/{type}",
