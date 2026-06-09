@@ -7,5 +7,7 @@ data class PlantDetailDto(
     val location: String,
     val imageUrl: String?,
     val sensorId: String?,
-    val lastWateringAt: String?
+    val lastWateringAt: String?,
+    val speciesId: String? = null,
+    val speciesDetails: PlantSpeciesDto? = null
 )

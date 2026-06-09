@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.plant_care_app.data.PlantImageStore
 import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.ui.models.PlantSpeciesDto
 import com.example.plant_care_app.ui.models.SensorDto
 import com.example.plant_care_app.utils.PlantImageFileManager
 import okhttp3.MediaType.Companion.toMediaType
@@ -110,8 +111,10 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
     }
 
     var sensors by remember { mutableStateOf<List<SensorDto>>(emptyList()) }
+    var speciesCatalog by remember { mutableStateOf<List<PlantSpeciesDto>>(emptyList()) }
     var name by remember { mutableStateOf("") }
-    var species by remember { mutableStateOf("") }
+    var selectedSpeciesName by remember { mutableStateOf("") }
+    var selectedSpeciesId by remember { mutableStateOf<String?>(null) }
     var selectedLocation by remember { mutableStateOf("") }
     var selectedSensorName by remember { mutableStateOf("") }
     var selectedSensorId by remember { mutableStateOf<String?>(null) }
@@ -119,7 +122,12 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        sensors = RetrofitClient.plantApi.getSensors()
+        try {
+            sensors = RetrofitClient.plantApi.getSensors()
+            speciesCatalog = RetrofitClient.plantApi.getSpecies()
+        } catch (e: Exception) {
+            errorMessage = e.message ?: "Error al cargar datos del formulario."
+        }
     }
 
     Column(
@@ -229,22 +237,16 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text("Especie", fontWeight = FontWeight.SemiBold, color = GreenPrimary)
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = species,
-                onValueChange = { species = it },
-                placeholder = { Text("Ej: Monstera deliciosa", color = Color.LightGray) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = { focusManager.clearFocus() }
-                ),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black,
-                    focusedBorderColor = GreenPrimary,
-                    unfocusedBorderColor = Color.LightGray
-                )
+            PlantDropdown(
+                label = "",
+                placeholder = if (speciesCatalog.isEmpty()) "Cargando especies..." else "Seleccionar especie",
+                options = speciesCatalog.map { it.displayName },
+                selected = selectedSpeciesName,
+                showLabel = false,
+                onSelected = { displayName ->
+                    selectedSpeciesName = displayName
+                    selectedSpeciesId = speciesCatalog.find { it.displayName == displayName }?.id
+                }
             )
         }
 
@@ -288,6 +290,10 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
                     errorMessage = "El nombre es obligatorio."
                     return@Button
                 }
+                if (selectedSpeciesId.isNullOrBlank()) {
+                    errorMessage = "Selecciona una especie."
+                    return@Button
+                }
                 if (selectedLocation.isBlank()) {
                     errorMessage = "Seleccioná una ubicación."
                     return@Button
@@ -310,7 +316,7 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
                         val createdPlant = RetrofitClient.plantApi.createPlant(
                             image = imagePlant,
                             name = name.trim().toRequestBody("text/plain".toMediaType()),
-                            species = species.trim().toRequestBody("text/plain".toMediaType()),
+                            speciesId = selectedSpeciesId!!.toRequestBody("text/plain".toMediaType()),
                             location = selectedLocation.toRequestBody("text/plain".toMediaType()),
                             sensorId = (selectedSensorId ?: "").toRequestBody("text/plain".toMediaType())
                         )
@@ -364,13 +370,16 @@ private fun PlantDropdown(
     placeholder: String,
     options: List<String>,
     selected: String,
+    showLabel: Boolean = true,
     onSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(label, fontWeight = FontWeight.SemiBold, color = GreenPrimary)
-        Spacer(modifier = Modifier.height(8.dp))
+        if (showLabel) {
+            Text(label, fontWeight = FontWeight.SemiBold, color = GreenPrimary)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = it }

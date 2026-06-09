@@ -4,6 +4,7 @@ import com.example.plant_care_app.ui.models.CreateSensorRequest
 import com.example.plant_care_app.ui.models.PlantDetailDto
 import com.example.plant_care_app.ui.models.UpdatePlantSensorRequest
 import com.example.plant_care_app.ui.models.PlantOverviewDto
+import com.example.plant_care_app.ui.models.PlantSpeciesDto
 import com.example.plant_care_app.ui.models.PlantStatusDto
 import com.example.plant_care_app.ui.models.ReadingDto
 import com.example.plant_care_app.ui.models.SensorDto
@@ -20,6 +21,12 @@ import retrofit2.http.Part
 import retrofit2.http.Path
 
 interface PlantApiService {
+
+    @GET("api/species")
+    suspend fun getSpecies(): List<PlantSpeciesDto>
+
+    @GET("api/species/{id}")
+    suspend fun getSpeciesById(@Path("id") id: String): PlantSpeciesDto
 
     @GET("api/plants/overview")
     suspend fun getOverview(): List<PlantOverviewDto>
@@ -57,7 +64,7 @@ interface PlantApiService {
     suspend fun createPlant(
         @Part image: MultipartBody.Part?,
         @Part("name") name: RequestBody,
-        @Part("species") species: RequestBody,
+        @Part("speciesId") speciesId: RequestBody,
         @Part("location") location: RequestBody,
         @Part("sensorId") sensorId: RequestBody?
     ): PlantDetailDto
