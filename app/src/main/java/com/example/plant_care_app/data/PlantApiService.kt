@@ -2,6 +2,7 @@ package com.example.plant_care_app.data
 
 import com.example.plant_care_app.ui.models.CreateSensorRequest
 import com.example.plant_care_app.ui.models.PlantDetailDto
+import com.example.plant_care_app.ui.models.PlantIdentificationResponseDto
 import com.example.plant_care_app.ui.models.UpdatePlantSensorRequest
 import com.example.plant_care_app.ui.models.PlantOverviewDto
 import com.example.plant_care_app.ui.models.PlantSpeciesDto
@@ -27,6 +28,14 @@ interface PlantApiService {
 
     @GET("api/species/{id}")
     suspend fun getSpeciesById(@Path("id") id: String): PlantSpeciesDto
+
+    // Envía la foto de la planta al backend para obtener posibles especies desde PlantNet.
+    @Multipart
+    @POST("api/species/identify")
+    suspend fun identifySpecies(
+        @Part image: MultipartBody.Part,
+        @Part("organ") organ: RequestBody
+    ): PlantIdentificationResponseDto
 
     @GET("api/plants/overview")
     suspend fun getOverview(): List<PlantOverviewDto>

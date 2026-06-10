@@ -24,3 +24,16 @@ data class PlantSpeciesMessagesDto(
     val optimal: String? = null,
     val excessWater: String? = null
 )
+
+// Respuesta del endpoint de identificación por imagen.
+data class PlantIdentificationResponseDto(
+    val bestMatch: PlantIdentificationCandidateDto? = null,
+    val candidates: List<PlantIdentificationCandidateDto> = emptyList()
+)
+
+// Candidato devuelto por PlantNet con su nombre y nivel de confianza.
+data class PlantIdentificationCandidateDto(
+    val scientificName: String,
+    val commonName: String? = null,
+    val score: Double? = null
+)
