@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -87,8 +89,19 @@ private fun App(){
                 navController = navController
             )
         }
-        composable("add_plant") {
-            AddPlantScreen(onBack = { navController.popBackStack() })
+        composable("add_plant") { backStackEntry ->
+            val linkedSensorId by backStackEntry.savedStateHandle
+                .getStateFlow<String?>("linkedSensorId", null)
+                .collectAsState()
+
+            AddPlantScreen(
+                onBack = { navController.popBackStack() },
+                onAddSensor = { navController.navigate("add_sensor") },
+                linkedSensorId = linkedSensorId,
+                onLinkedSensorHandled = {
+                    backStackEntry.savedStateHandle.remove<String>("linkedSensorId")
+                }
+            )
         }
         composable("sensors") {
             SensorsListScreen(
@@ -103,7 +116,15 @@ private fun App(){
             )
         }
         composable("add_sensor") {
-            AddEditSensorScreen(sensorId = null, onBack = { navController.popBackStack() })
+            AddEditSensorScreen(
+                sensorId = null,
+                onBack = { navController.popBackStack() },
+                onSensorCreated = { sensorId ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("linkedSensorId", sensorId)
+                }
+            )
         }
         composable(
             route = "edit_sensor/{sensorId}",

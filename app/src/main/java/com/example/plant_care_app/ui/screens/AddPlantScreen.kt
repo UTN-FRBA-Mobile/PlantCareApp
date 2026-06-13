@@ -1,7 +1,9 @@
 package com.example.plant_care_app.ui.screens
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -20,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -30,6 +33,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -39,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -79,25 +84,32 @@ private val GreenPrimary = Color(0xFF2E7D32)
 private val GreenLight = Color(0xFFA5D6A7)
 
 @Composable
-fun AddPlantScreen(onBack: () -> Unit = {}) {
+fun AddPlantScreen(
+    onBack: () -> Unit = {},
+    onAddSensor: () -> Unit = {},
+    linkedSensorId: String? = null,
+    onLinkedSensorHandled: () -> Unit = {}
+) {
     val locations = listOf("Sala", "Balcón", "Living", "Habitación", "Parque")
 
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
-    var photoUri by remember { mutableStateOf<android.net.Uri?>(null) }
-    var photoFile by remember { mutableStateOf<File?>(null) }
+    var photoUriValue by rememberSaveable { mutableStateOf<String?>(null) }
+    var photoFilePath by rememberSaveable { mutableStateOf<String?>(null) }
+    val photoUri = photoUriValue?.let(Uri::parse)
+    val photoFile = photoFilePath?.let(::File)
 
     var sensors by remember { mutableStateOf<List<SensorDto>>(emptyList()) }
     var speciesCatalog by remember { mutableStateOf<List<PlantSpeciesDto>>(emptyList()) }
     var identifiedCandidates by remember { mutableStateOf<List<PlantIdentificationCandidateDto>>(emptyList()) }
-    var name by remember { mutableStateOf("") }
-    var selectedSpeciesName by remember { mutableStateOf("") }
-    var selectedSpeciesId by remember { mutableStateOf<String?>(null) }
-    var selectedLocation by remember { mutableStateOf("") }
-    var selectedSensorName by remember { mutableStateOf("") }
-    var selectedSensorId by remember { mutableStateOf<String?>(null) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var selectedSpeciesName by rememberSaveable { mutableStateOf("") }
+    var selectedSpeciesId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedLocation by rememberSaveable { mutableStateOf("") }
+    var selectedSensorName by rememberSaveable { mutableStateOf("") }
+    var selectedSensorId by rememberSaveable { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var isIdentifyingSpecies by remember { mutableStateOf(false) }
     var identificationMessage by remember { mutableStateOf<String?>(null) }
@@ -169,8 +181,9 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            photoFile?.let { file ->
-                photoUri = PlantImageFileManager.getUriForFile(context, file)
+            photoFilePath?.let { path ->
+                val file = File(path)
+                photoUriValue = PlantImageFileManager.getUriForFile(context, file).toString()
                 identifySpeciesFromPhoto(file)
             }
         }
@@ -180,9 +193,10 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            photoUri = uri
-            photoFile = PlantImageFileManager.copyUriToPlantImageFile(context, uri)
-            photoFile?.let(::identifySpeciesFromPhoto)
+            photoUriValue = uri.toString()
+            val copiedFile = PlantImageFileManager.copyUriToPlantImageFile(context, uri)
+            photoFilePath = copiedFile?.absolutePath
+            copiedFile?.let(::identifySpeciesFromPhoto)
         }
     }
 
@@ -190,17 +204,30 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
         val file = PlantImageFileManager.createImageFile(context)
         val uri = PlantImageFileManager.getUriForFile(context, file)
 
-        photoFile = file
+        photoFilePath = file.absolutePath
         cameraLauncher.launch(uri)
     }
 
-    LaunchedEffect(Unit) {
+    suspend fun loadFormData(sensorIdToSelect: String? = null) {
         try {
-            sensors = RetrofitClient.plantApi.getSensors()
+            val loadedSensors = RetrofitClient.plantApi.getSensors()
+            sensors = loadedSensors
             speciesCatalog = RetrofitClient.plantApi.getSpecies()
+
+            if (!sensorIdToSelect.isNullOrBlank()) {
+                loadedSensors.firstOrNull { it.id == sensorIdToSelect }?.let { sensor ->
+                    selectedSensorName = sensor.name
+                    selectedSensorId = sensor.id
+                }
+                onLinkedSensorHandled()
+            }
         } catch (e: Exception) {
             errorMessage = e.message ?: "Error al cargar datos del formulario."
         }
+    }
+
+    LaunchedEffect(linkedSensorId) {
+        loadFormData(linkedSensorId)
     }
 
     // Cuando el catálogo llega después de la identificación, intenta aplicar la sugerencia pendiente.
@@ -362,16 +389,41 @@ fun AddPlantScreen(onBack: () -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        PlantDropdown(
-            label = "Sensor",
-            placeholder = "Sin sensor",
-            options = listOf("Sin sensor") + sensors.filter { it.status == "AVAILABLE" }.map { it.name },
-            selected = selectedSensorName,
-            onSelected = { name ->
-                selectedSensorName = name
-                selectedSensorId = sensors.find { it.name == name }?.id
+        Column(modifier = Modifier.fillMaxWidth()) {
+            PlantDropdown(
+                label = "Sensor (opcional)",
+                placeholder = "Sin sensor",
+                options = listOf("Sin sensor") + sensors.filter { it.status == "AVAILABLE" }.map { it.name },
+                selected = selectedSensorName,
+                onSelected = { name ->
+                    selectedSensorName = name
+                    selectedSensorId = sensors.find { it.name == name }?.id
+                }
+            )
+            OutlinedButton(
+                onClick = onAddSensor,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, GreenPrimary),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = GreenPrimary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Sensors,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Vincular sensor con codigo",
+                    fontWeight = FontWeight.SemiBold
+                )
             }
-        )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
