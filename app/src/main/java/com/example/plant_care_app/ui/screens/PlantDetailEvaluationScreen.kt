@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -39,9 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
@@ -51,13 +49,14 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.ui.models.PlantDetailDto
 import com.example.plant_care_app.ui.models.ReadingDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
- * Screen that shows real detailed evaluation of a plant using its readings.
+ * Pantalla que muestra la evaluación detallada de una planta usando sus lecturas
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +67,7 @@ fun PlantDetailEvaluationScreen(
     plantType: String = "Tropical"
 ) {
     var readings by remember { mutableStateOf<List<ReadingDto>>(emptyList()) }
+    var plant by remember { mutableStateOf<PlantDetailDto?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -75,8 +75,9 @@ fun PlantDetailEvaluationScreen(
         if (plantId.isNotEmpty()) {
             try {
                 isLoading = true
-                val response = RetrofitClient.plantApi.getReadings(plantId)
-                readings = response
+                // Se carga el detalle para obtener el rango óptimo de humedad de la especie
+                plant = RetrofitClient.plantApi.getPlantById(plantId)
+                readings = RetrofitClient.plantApi.getReadings(plantId)
                 errorMessage = null
             } catch (e: Exception) {
                 errorMessage = "Error al cargar las evaluaciones"
@@ -129,7 +130,12 @@ fun PlantDetailEvaluationScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Header: Prominent and Centered Plant Info
+                val speciesDetails = plant?.speciesDetails
+                val humidityMin = speciesDetails?.humidityMin
+                val humidityMax = speciesDetails?.humidityMax
+                val displayPlantName = plant?.name ?: plantName
+                val displayPlantType = speciesDetails?.displayName ?: plant?.species ?: plantType
+
                 item {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -137,13 +143,13 @@ fun PlantDetailEvaluationScreen(
                     ) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = plantName,
+                            text = displayPlantName,
                             fontSize = 32.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            text = plantType,
+                            text = displayPlantType,
                             fontSize = 18.sp,
                             color = Color.Gray
                         )
@@ -167,7 +173,6 @@ fun PlantDetailEvaluationScreen(
                         }
                     }
                 } else {
-                    // Main Evaluations Card
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -187,10 +192,11 @@ fun PlantDetailEvaluationScreen(
                                     color = MaterialTheme.colorScheme.primary
                                 )
 
-                                // Simple Humidity Line Chart (Oldest to Newest)
                                 val chartData = readings.sortedBy { it.readAt }.map { it.soilMoisture.toFloat() }
                                 HumidityLineChart(
                                     data = chartData,
+                                    optimalMin = humidityMin,
+                                    optimalMax = humidityMax,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(200.dp)
@@ -210,11 +216,14 @@ fun PlantDetailEvaluationScreen(
                                     fontWeight = FontWeight.Bold
                                 )
 
-                                // Real Chronological Evaluation History (Newest First)
                                 val historyReadings = readings.sortedByDescending { it.readAt }
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     historyReadings.forEach { reading ->
-                                        EvaluationHistoryItem(reading)
+                                        EvaluationHistoryItem(
+                                            reading = reading,
+                                            optimalMin = humidityMin,
+                                            optimalMax = humidityMax
+                                        )
                                     }
                                 }
                             }
@@ -231,11 +240,15 @@ fun PlantDetailEvaluationScreen(
 }
 
 /**
- * A simple line chart to visualize humidity evolution.
+ * Gráfico de línea con la evolución de la humedad
  */
 @Composable
-fun HumidityLineChart(data: List<Float>, modifier: Modifier = Modifier) {
-    val primaryColor = MaterialTheme.colorScheme.primary
+fun HumidityLineChart(
+    data: List<Float>,
+    optimalMin: Int?,
+    optimalMax: Int?,
+    modifier: Modifier = Modifier
+) {
     val labelColor = Color.Gray.toArgb()
 
     Box(modifier = modifier) {
@@ -248,7 +261,19 @@ fun HumidityLineChart(data: List<Float>, modifier: Modifier = Modifier) {
             val chartWidth = width - leftPadding
             val chartHeight = height - bottomPadding
 
-            // Draw Y-axis labels (0, 50, 100)
+            // Convierte un porcentaje de humedad en coordenada Y
+            // En Canvas el 0 está arriba, por eso se invierte el valor
+            fun yForValue(value: Float): Float =
+                chartHeight - (value.coerceIn(0f, maxVal) / maxVal * chartHeight)
+
+            // Calcula la posición de cada lectura dentro del área real del gráfico
+            // El eje X reparte los puntos de forma uniforme entre la lectura más vieja y la más nueva
+            fun pointFor(index: Int, value: Float): Offset {
+                val x = leftPadding + index * chartWidth / (if (data.size > 1) data.size - 1 else 1)
+                return Offset(x, yForValue(value))
+            }
+
+            // Dibuja etiquetas del eje Y: 0%, 50% y 100%
             val paint = android.graphics.Paint().apply {
                 color = labelColor
                 textSize = 28f
@@ -259,63 +284,111 @@ fun HumidityLineChart(data: List<Float>, modifier: Modifier = Modifier) {
             drawContext.canvas.nativeCanvas.drawText("50%", leftPadding - 10f, chartHeight / 2 + 10f, paint)
             drawContext.canvas.nativeCanvas.drawText("0%", leftPadding - 10f, chartHeight, paint)
 
-            // Draw simple grid lines
+            // Dibuja líneas guía simples para facilitar la lectura del gráfico
             drawLine(Color.LightGray.copy(alpha = 0.3f), Offset(leftPadding, 15f), Offset(width, 15f))
             drawLine(Color.LightGray.copy(alpha = 0.3f), Offset(leftPadding, chartHeight / 2), Offset(width, chartHeight / 2))
             drawLine(Color.LightGray.copy(alpha = 0.3f), Offset(leftPadding, chartHeight), Offset(width, chartHeight))
 
-            // Draw Line
-            if (data.isNotEmpty()) {
-                val path = Path()
-                data.forEachIndexed { index, value ->
-                    val x = leftPadding + index * chartWidth / (if (data.size > 1) data.size - 1 else 1)
-                    val y = chartHeight - (value / maxVal * chartHeight)
-                    
-                    if (index == 0) {
-                        path.moveTo(x, y)
-                    } else {
-                        path.lineTo(x, y)
-                    }
+            if (optimalMin != null && optimalMax != null) {
+                // Banda visual que marca el rango saludable para esta especie
+                // Como Y está invertida, el máximo queda más arriba y el mínimo más abajo
+                val top = yForValue(optimalMax.toFloat())
+                val bottom = yForValue(optimalMin.toFloat())
+                drawRect(
+                    color = Color(0xFF2E7D32).copy(alpha = 0.10f),
+                    topLeft = Offset(leftPadding, top),
+                    size = Size(chartWidth, bottom - top)
+                )
+            }
 
-                    // Draw dots for each value
+            // Dibuja la línea de evolución de humedad
+            if (data.isNotEmpty()) {
+                if (data.size == 1) {
+                    // Con una sola lectura no hay línea para trazar, solo se dibuja el punto
+                    val point = pointFor(0, data.first())
                     drawCircle(
-                        color = primaryColor,
+                        color = humidityColor(data.first(), optimalMin, optimalMax),
                         radius = 4.dp.toPx(),
-                        center = Offset(x, y)
+                        center = point
+                    )
+                    return@Canvas
+                }
+
+                // Se dibuja tramo por tramo para que una misma línea pueda cambiar de color
+                // cuando cruza de sequedad a rango óptimo o a exceso de humedad
+                data.zipWithNext().forEachIndexed { index, (startValue, endValue) ->
+                    val start = pointFor(index, startValue)
+                    val end = pointFor(index + 1, endValue)
+                    
+                    // Cada segmento toma el color del promedio entre sus dos lecturas
+                    val segmentValue = (startValue + endValue) / 2f
+                    drawLine(
+                        color = humidityColor(segmentValue, optimalMin, optimalMax),
+                        start = start,
+                        end = end,
+                        strokeWidth = 3.dp.toPx()
                     )
                 }
 
-                drawPath(
-                    path = path,
-                    color = primaryColor,
-                    style = Stroke(width = 3.dp.toPx())
-                )
+                // Los puntos usan el color de su propia lectura, no el promedio del tramo
+                data.forEachIndexed { index, value ->
+                    drawCircle(
+                        color = humidityColor(value, optimalMin, optimalMax),
+                        radius = 4.dp.toPx(),
+                        center = pointFor(index, value)
+                    )
+                }
             }
         }
     }
 }
 
+private fun humidityColor(value: Float, optimalMin: Int?, optimalMax: Int?): Color {
+    if (optimalMin == null || optimalMax == null) return Color(0xFF2E7D32)
+
+    // Rojo: falta agua; verde: rango óptimo; azul: exceso de humedad
+    return when {
+        value < optimalMin -> Color(0xFFB71C1C)
+        value > optimalMax -> Color(0xFF1976D2)
+        else -> Color(0xFF2E7D32)
+    }
+}
+
 /**
- * Displays a single row in the evaluation history with specific coloring for recommendations.
+ * Muestra una fila del historial con color según la recomendación
  */
 @Composable
-private fun EvaluationHistoryItem(reading: ReadingDto) {
+private fun EvaluationHistoryItem(
+    reading: ReadingDto,
+    optimalMin: Int?,
+    optimalMax: Int?
+) {
     val moisture = reading.soilMoisture
     
-    val recommendation = when {
-        moisture >= 70 -> "NO REGAR"
-        moisture >= 50 -> "REVISAR"
-        else -> "REGAR"
+    val recommendation = if (optimalMin != null && optimalMax != null) {
+        // Cuando hay rango de especie, el historial usa esos límites y no cortes fijos
+        when {
+            moisture < optimalMin -> "REGAR"
+            moisture > optimalMax -> "NO REGAR"
+            else -> "OK"
+        }
+    } else {
+        when {
+            moisture >= 70 -> "NO REGAR"
+            moisture >= 50 -> "REVISAR"
+            else -> "REGAR"
+        }
     }
 
     val recommendationColor = when (recommendation) {
-        "NO REGAR" -> Color(0xFF2E7D32) // Green
-        "REVISAR" -> Color(0xFFE65100) // Orange
-        "REGAR" -> Color(0xFFB71C1C)   // Red
+        "OK" -> Color(0xFF2E7D32)
+        "NO REGAR" -> Color(0xFF1976D2)
+        "REVISAR" -> Color(0xFFE65100)
+        "REGAR" -> Color(0xFFB71C1C)
         else -> Color.Gray
     }
 
-    // Format the date and time from readAt
+    // Formatea fecha y hora a partir de readAt
     val formattedDateTime = remember(reading.readAt) {
         try {
             val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())

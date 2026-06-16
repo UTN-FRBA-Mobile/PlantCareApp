@@ -180,7 +180,7 @@ fun AddPlantScreen(
                 )
                 val response = RetrofitClient.plantApi.identifySpecies(
                     image = image,
-                    organ = "habit".toRequestBody("text/plain".toMediaType())
+                    organ = "leaf".toRequestBody("text/plain".toMediaType())
                 )
                 val candidates = (listOfNotNull(response.bestMatch) + response.candidates)
                     .distinctBy { normalizeSpeciesName(it.scientificName) }
