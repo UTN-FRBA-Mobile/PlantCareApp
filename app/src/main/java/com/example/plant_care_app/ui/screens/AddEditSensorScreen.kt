@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.plant_care_app.data.RetrofitClient
@@ -56,6 +57,7 @@ import retrofit2.HttpException
 fun AddEditSensorScreen(
     sensorId: String?,
     onBack: () -> Unit,
+    onSensorCreated: (String) -> Unit = {},
 ) {
     val isEditMode = sensorId != null
     val context = LocalContext.current
@@ -63,6 +65,7 @@ fun AddEditSensorScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var name by remember { mutableStateOf("") }
+    var sensorCode by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var isFetching by remember { mutableStateOf(isEditMode) }
@@ -87,7 +90,7 @@ fun AddEditSensorScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (isEditMode) "Editar sensor" else "Nuevo sensor",
+                        if (isEditMode) "Editar sensor" else "Vincular sensor",
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -130,13 +133,44 @@ fun AddEditSensorScreen(
                         focusedBorderColor = Color(0xFF2E7D32),
                         unfocusedBorderColor = Color.LightGray
                     ),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = if (isEditMode) ImeAction.Done else ImeAction.Next
+                    ),
                     keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
                 )
 
+                if (!isEditMode) {
+                    Spacer(Modifier.height(20.dp))
+                    Text("Codigo del sensor", fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Color.DarkGray)
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = sensorCode,
+                        onValueChange = { sensorCode = it; errorMessage = null },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Ej: clave impresa en el sensor") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF2E7D32),
+                            unfocusedBorderColor = Color.LightGray
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Ascii,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
+                    )
+                    Text(
+                        "Ingresalo tal como aparece en el dispositivo. Mas adelante se podra escanear por QR.",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
                 if (isEditMode && apiKey != null) {
                     Spacer(Modifier.height(24.dp))
-                    Text("API Key", fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Color.DarkGray)
+                    Text("Codigo del sensor", fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Color.DarkGray)
                     Spacer(Modifier.height(6.dp))
                     OutlinedTextField(
                         value = apiKey!!,
@@ -153,14 +187,14 @@ fun AddEditSensorScreen(
                         trailingIcon = {
                             IconButton(onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("apiKey", apiKey))
+                                clipboard.setPrimaryClip(ClipData.newPlainText("sensorCode", apiKey))
                             }) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = "Copiar", tint = Color(0xFF2E7D32))
                             }
                         }
                     )
                     Text(
-                        "Usá esta clave para configurar tu dispositivo IoT.",
+                        "Este codigo identifica al dispositivo fisico vinculado.",
                         fontSize = 12.sp,
                         color = Color.Gray,
                         modifier = Modifier.padding(top = 4.dp)
@@ -179,6 +213,10 @@ fun AddEditSensorScreen(
                             errorMessage = "El nombre es obligatorio."
                             return@Button
                         }
+                        if (!isEditMode && sensorCode.isBlank()) {
+                            errorMessage = "El codigo del sensor es obligatorio."
+                            return@Button
+                        }
                         keyboardController?.hide()
                         isLoading = true
                         scope.launch {
@@ -186,7 +224,13 @@ fun AddEditSensorScreen(
                                 if (isEditMode) {
                                     RetrofitClient.plantApi.updateSensor(sensorId!!, UpdateSensorRequest(name.trim()))
                                 } else {
-                                    RetrofitClient.plantApi.createSensor(CreateSensorRequest(name.trim()))
+                                    val createdSensor = RetrofitClient.plantApi.createSensor(
+                                        CreateSensorRequest(
+                                            name = name.trim(),
+                                            apiKey = sensorCode.trim()
+                                        )
+                                    )
+                                    onSensorCreated(createdSensor.id)
                                 }
                                 onBack()
                             } catch (e: HttpException) {
@@ -206,7 +250,7 @@ fun AddEditSensorScreen(
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.padding(end = 8.dp).height(20.dp), strokeWidth = 2.dp)
                         Text("Guardando...")
                     } else {
-                        Text(if (isEditMode) "Guardar cambios" else "Crear sensor", fontWeight = FontWeight.SemiBold)
+                        Text(if (isEditMode) "Guardar cambios" else "Vincular sensor", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

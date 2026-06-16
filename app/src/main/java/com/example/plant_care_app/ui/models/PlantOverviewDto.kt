@@ -12,5 +12,8 @@ data class PlantOverviewDto(
     val readAt: String?,
     val recommendation: String?,
     val urgency: String?,
-    val statusLabel: String?
+    val statusLabel: String?,
+    val speciesId: String? = null,
+    val species: String? = null,
+    val speciesDetails: PlantSpeciesDto? = null
 )

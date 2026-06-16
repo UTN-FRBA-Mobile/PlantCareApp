@@ -56,6 +56,7 @@ import com.example.plant_care_app.R
 import com.example.plant_care_app.data.PlantImageStore
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.ui.models.PlantDetailDto
+import com.example.plant_care_app.ui.models.PlantSpeciesDto
 import com.example.plant_care_app.ui.models.PlantStatusDto
 import com.example.plant_care_app.ui.models.ReadingDto
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
@@ -275,11 +276,6 @@ private fun PlantDetailContent(
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        text = plant?.species ?: "",
-                        fontSize = 16.sp,
-                        color = Color.Gray
-                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "📍  ${plant?.location ?: ""}",
@@ -293,8 +289,15 @@ private fun PlantDetailContent(
                 StatusHumidityCard(
                     statusLabel = status?.statusLabel,
                     explanation = status?.explanation,
+                    recommendation = status?.recommendation,
                     soilMoisture = readings.firstOrNull()?.soilMoisture
                 )
+            }
+
+            plant?.speciesDetails?.let { speciesDetails ->
+                item {
+                    SpeciesCareCard(speciesDetails)
+                }
             }
 
             item {
@@ -342,6 +345,7 @@ private fun PlantDetailContent(
 private fun StatusHumidityCard(
     statusLabel: String?,
     explanation: String?,
+    recommendation: String?,
     soilMoisture: Int?
 ) {
     val statusColor = when (statusLabel) {
@@ -382,12 +386,22 @@ private fun StatusHumidityCard(
                     fontWeight = FontWeight.Bold,
                     color = statusColor
                 )
-                if (!explanation.isNullOrBlank()) {
+                /*if (!explanation.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = explanation,
                         fontSize = 13.sp,
                         color = Color.DarkGray,
+                        lineHeight = 18.sp
+                    )
+                }*/
+                if (!recommendation.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = recommendation,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = statusColor,
                         lineHeight = 18.sp
                     )
                 }
@@ -413,24 +427,224 @@ private fun StatusHumidityCard(
     }
 }
 
+@Composable
+private fun SpeciesCareCard(species: PlantSpeciesDto) {
+    val humidityRange = species.humidityMin?.let { min ->
+        species.humidityMax?.let { max -> "$min% - $max%" }
+    }
+    val temperatureRange = species.temperatureMin?.let { min ->
+        species.temperatureMax?.let { max -> "$min C - $max C" }
+    }
+    val careItems = listOfNotNull(
+        humidityRange?.let { CareMetric("Humedad", it) },
+        temperatureRange?.let { CareMetric("Temperatura", it) },
+        species.wateringFrequency?.let { CareMetric("Riego", it) },
+        species.lightRequirement?.let { CareMetric("Luz", it) },
+        species.difficulty?.let { CareMetric("Dificultad", it) }
+    )
+    val tips = species.careTips.orEmpty().filter { it.isNotBlank() }.take(3)
+    val fact = remember(species.id, species.facts) {
+        val facts = species.facts.orEmpty().filter { it.isNotBlank() }
+        facts.getOrNull(Math.floorMod(species.id.hashCode(), facts.size.coerceAtLeast(1)))
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SpeciesProfileCard(
+            species = species,
+            careItems = careItems
+        )
+
+        if (tips.isNotEmpty()) {
+            CareTipsCard(tips)
+        }
+
+        if (!fact.isNullOrBlank()) {
+            SpeciesFactCard(fact)
+        }
+    }
+}
+
+private data class CareMetric(
+    val label: String,
+    val value: String
+)
+
+@Composable
+private fun SpeciesProfileCard(
+    species: PlantSpeciesDto,
+    careItems: List<CareMetric>
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "${species.emoji.orEmpty()} ${species.displayName}".trim(),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF2E7D32)
+            )
+            if (!species.description.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = species.description,
+                    fontSize = 13.sp,
+                    color = Color.DarkGray,
+                    lineHeight = 18.sp
+                )
+            }
+
+            if (careItems.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    careItems.chunked(2).forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            rowItems.forEach { item ->
+                                CareMetricCard(
+                                    metric = item,
+                                    modifier = if (rowItems.size == 1) {
+                                        Modifier.fillMaxWidth()
+                                    } else {
+                                        Modifier.weight(1f)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CareMetricCard(
+    metric: CareMetric,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.height(76.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.78f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = metric.label,
+                fontSize = 11.sp,
+                color = Color(0xFF6D7D70),
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = metric.value,
+                fontSize = 13.sp,
+                color = Color(0xFF25382A),
+                fontWeight = FontWeight.Bold,
+                lineHeight = 16.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun CareTipsCard(tips: List<String>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Tips de cuidado",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF7A5600)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            tips.forEachIndexed { index, tip ->
+                if (index > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "${index + 1}.",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF7A5600)
+                    )
+                    Text(
+                        text = tip,
+                        fontSize = 13.sp,
+                        color = Color(0xFF3D3320),
+                        lineHeight = 18.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpeciesFactCard(fact: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F0FE))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Dato curioso",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E4F8A)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = fact,
+                fontSize = 13.sp,
+                color = Color(0xFF26384C),
+                lineHeight = 18.sp
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NavCard(emoji: String, label: String, modifier: Modifier, onClick: () -> Unit) {
     ElevatedCard(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 20.dp),
+                .height(94.dp)
+                .padding(vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(text = emoji, fontSize = 28.sp)
+            Text(text = emoji, fontSize = 23.sp)
             Spacer(modifier = Modifier.height(6.dp))
-            Text(text = label, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+            Text(
+                text = label,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = Color(0xFF25382A)
+            )
         }
     }
 }
@@ -440,11 +654,11 @@ private fun ReadingItem(reading: ReadingDto) {
     val moisture = reading.soilMoisture
     val color = when {
         moisture >= 60 -> Color(0xFF2E7D32)
-        moisture >= 30 -> Color(0xFFE65100)
-        else -> Color(0xFFB71C1C)
+        moisture >= 30 -> Color(0xFFD86B21)
+        else -> Color(0xFFC9472C)
     }
 
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+    Column(modifier = Modifier.padding(vertical = 2.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -452,7 +666,7 @@ private fun ReadingItem(reading: ReadingDto) {
         ) {
             Text(
                 text = "${moisture}%",
-                fontSize = 20.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = color
             )
@@ -467,10 +681,10 @@ private fun ReadingItem(reading: ReadingDto) {
             progress = { moisture / 100f },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
+                .height(7.dp)
                 .clip(RoundedCornerShape(4.dp)),
             color = color,
-            trackColor = color.copy(alpha = 0.2f)
+            trackColor = color.copy(alpha = 0.16f)
         )
         Spacer(modifier = Modifier.height(12.dp))
         HorizontalDivider()
