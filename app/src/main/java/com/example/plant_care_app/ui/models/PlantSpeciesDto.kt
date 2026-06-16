@@ -35,5 +35,7 @@ data class PlantIdentificationResponseDto(
 data class PlantIdentificationCandidateDto(
     val scientificName: String,
     val commonName: String? = null,
-    val score: Double? = null
+    val score: Double? = null,
+    val matchedSpeciesId: String? = null,
+    val displayName: String? = null
 )

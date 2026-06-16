@@ -97,6 +97,12 @@ private fun App(){
             AddPlantScreen(
                 onBack = { navController.popBackStack() },
                 onAddSensor = { navController.navigate("add_sensor") },
+                // Al crear una planta se redirige naturalmente al Detalle de la Planta
+                onPlantCreated = { plantId ->
+                    navController.navigate("plant_detail/$plantId") {
+                        popUpTo("add_plant") { inclusive = true }
+                    }
+                },
                 linkedSensorId = linkedSensorId,
                 onLinkedSensorHandled = {
                     backStackEntry.savedStateHandle.remove<String>("linkedSensorId")

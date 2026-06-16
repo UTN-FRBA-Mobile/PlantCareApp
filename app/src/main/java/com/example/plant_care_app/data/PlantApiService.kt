@@ -75,6 +75,8 @@ interface PlantApiService {
         @Part("name") name: RequestBody,
         @Part("speciesId") speciesId: RequestBody,
         @Part("location") location: RequestBody,
-        @Part("sensorId") sensorId: RequestBody?
+        @Part("sensorId") sensorId: RequestBody?,
+        @Part("identifiedCommonName") identifiedCommonName: RequestBody?,
+        @Part("identifiedScientificName") identifiedScientificName: RequestBody?
     ): PlantDetailDto
 }

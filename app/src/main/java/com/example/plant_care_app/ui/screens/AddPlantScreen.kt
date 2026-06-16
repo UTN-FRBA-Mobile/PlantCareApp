@@ -82,15 +82,17 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 private val GreenPrimary = Color(0xFF2E7D32)
 private val GreenLight = Color(0xFFA5D6A7)
+private const val OtherSpeciesId = "other"
 
 @Composable
 fun AddPlantScreen(
     onBack: () -> Unit = {},
     onAddSensor: () -> Unit = {},
+    onPlantCreated: (String) -> Unit = {},
     linkedSensorId: String? = null,
     onLinkedSensorHandled: () -> Unit = {}
 ) {
-    val locations = listOf("Sala", "Balcón", "Living", "Habitación", "Parque")
+    val locations = listOf("Sala", "Balcón", "Living", "Habitación", "Patio", "Terraza", "Cocina")
 
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
@@ -110,6 +112,9 @@ fun AddPlantScreen(
     var selectedLocation by rememberSaveable { mutableStateOf("") }
     var selectedSensorName by rememberSaveable { mutableStateOf("") }
     var selectedSensorId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedCandidateScientificName by rememberSaveable { mutableStateOf<String?>(null) }
+    var identifiedCommonName by rememberSaveable { mutableStateOf<String?>(null) }
+    var identifiedScientificName by rememberSaveable { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var isIdentifyingSpecies by remember { mutableStateOf(false) }
     var identificationMessage by remember { mutableStateOf<String?>(null) }
@@ -135,6 +140,32 @@ fun AddPlantScreen(
     }
 
     // Sube la foto al endpoint de identificación y preselecciona la especie más cercana.
+    fun PlantIdentificationCandidateDto.title(): String =
+        displayName?.takeIf { it.isNotBlank() }
+            ?: commonName?.takeIf { it.isNotBlank() }
+            ?: scientificName
+
+    fun selectIdentifiedCandidate(candidate: PlantIdentificationCandidateDto) {
+        val speciesId = candidate.matchedSpeciesId ?: OtherSpeciesId
+        val speciesName = candidate.displayName
+            ?: speciesCatalog.firstOrNull { it.id == speciesId }?.displayName
+            ?: candidate.title()
+
+        selectedSpeciesId = speciesId
+        selectedSpeciesName = speciesName
+        selectedCandidateScientificName = candidate.scientificName
+
+        if (candidate.matchedSpeciesId == null) {
+            identifiedCommonName = candidate.commonName
+            identifiedScientificName = candidate.scientificName
+        } else {
+            identifiedCommonName = null
+            identifiedScientificName = null
+        }
+
+        identificationMessage = "Sugerencia por foto: $speciesName"
+    }
+
     fun identifySpeciesFromPhoto(file: File) {
         isIdentifyingSpecies = true
         identificationMessage = null
@@ -156,16 +187,10 @@ fun AddPlantScreen(
                     .sortedByDescending { it.score ?: 0.0 }
 
                 identifiedCandidates = candidates
-                val suggestedSpecies = candidates.firstNotNullOfOrNull { candidate ->
-                    speciesCatalog.firstOrNull { it.matches(candidate) }
-                }
+                val suggestedCandidate = candidates.firstOrNull()
 
-                if (suggestedSpecies != null) {
-                    selectedSpeciesName = suggestedSpecies.displayName
-                    selectedSpeciesId = suggestedSpecies.id
-                    identificationMessage = "Sugerencia por foto: ${suggestedSpecies.displayName}"
-                } else if (candidates.isNotEmpty()) {
-                    identificationMessage = "La foto devolvio posibles especies, pero no coinciden con el catalogo."
+                if (suggestedCandidate != null) {
+                    selectIdentifiedCandidate(suggestedCandidate)
                 } else {
                     identificationMessage = "No se encontraron especies posibles para la foto."
                 }
@@ -233,20 +258,11 @@ fun AddPlantScreen(
     // Cuando el catálogo llega después de la identificación, intenta aplicar la sugerencia pendiente.
     LaunchedEffect(speciesCatalog, identifiedCandidates) {
         if (selectedSpeciesId.isNullOrBlank() && speciesCatalog.isNotEmpty() && identifiedCandidates.isNotEmpty()) {
-            identifiedCandidates.firstNotNullOfOrNull { candidate ->
-                speciesCatalog.firstOrNull { it.matches(candidate) }
-            }?.let { suggestedSpecies ->
-                selectedSpeciesName = suggestedSpecies.displayName
-                selectedSpeciesId = suggestedSpecies.id
-                identificationMessage = "Sugerencia por foto: ${suggestedSpecies.displayName}"
-            }
+            selectIdentifiedCandidate(identifiedCandidates.first())
         }
     }
 
-    val suggestedSpecies = identifiedCandidates
-        .mapNotNull { candidate -> speciesCatalog.firstOrNull { it.matches(candidate) } }
-        .distinctBy { it.id }
-    val speciesOptions = (suggestedSpecies + speciesCatalog).distinctBy { it.id }
+    val speciesOptions = speciesCatalog.distinctBy { it.id }
 
     Column(
         modifier = Modifier
@@ -329,7 +345,8 @@ fun AddPlantScreen(
             candidates = identifiedCandidates.take(3),
             isLoading = isIdentifyingSpecies,
             message = identificationMessage,
-            hasSuggestedSpecies = suggestedSpecies.isNotEmpty()
+            selectedScientificName = selectedCandidateScientificName,
+            onCandidateSelected = ::selectIdentifiedCandidate
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -346,6 +363,9 @@ fun AddPlantScreen(
                 onSelected = { displayName ->
                     selectedSpeciesName = displayName
                     selectedSpeciesId = speciesOptions.find { it.displayName == displayName }?.id
+                    selectedCandidateScientificName = null
+                    identifiedCommonName = null
+                    identifiedScientificName = null
                 }
             )
         }
@@ -470,7 +490,15 @@ fun AddPlantScreen(
                             name = name.trim().toRequestBody("text/plain".toMediaType()),
                             speciesId = selectedSpeciesId!!.toRequestBody("text/plain".toMediaType()),
                             location = selectedLocation.toRequestBody("text/plain".toMediaType()),
-                            sensorId = (selectedSensorId ?: "").toRequestBody("text/plain".toMediaType())
+                            sensorId = selectedSensorId
+                                ?.takeIf { it.isNotBlank() }
+                                ?.toRequestBody("text/plain".toMediaType()),
+                            identifiedCommonName = identifiedCommonName
+                                ?.takeIf { selectedSpeciesId == OtherSpeciesId && it.isNotBlank() }
+                                ?.toRequestBody("text/plain".toMediaType()),
+                            identifiedScientificName = identifiedScientificName
+                                ?.takeIf { selectedSpeciesId == OtherSpeciesId && it.isNotBlank() }
+                                ?.toRequestBody("text/plain".toMediaType())
                         )
 
                         photoFile?.let { file ->
@@ -481,7 +509,7 @@ fun AddPlantScreen(
                             )
                         }
 
-                        onBack()
+                        onPlantCreated(createdPlant.id)
                     } catch (e: Exception) {
                         e.printStackTrace()
                         errorMessage = e.message ?: "Error al guardar. Intentá de nuevo."
@@ -520,7 +548,8 @@ private fun IdentificationCandidates(
     candidates: List<PlantIdentificationCandidateDto>,
     isLoading: Boolean,
     message: String?,
-    hasSuggestedSpecies: Boolean
+    selectedScientificName: String?,
+    onCandidateSelected: (PlantIdentificationCandidateDto) -> Unit
 ) {
     // Muestra el estado de identificación y las tres mejores posibilidades detectadas.
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -556,7 +585,9 @@ private fun IdentificationCandidates(
         candidates.forEachIndexed { index, candidate ->
             CandidateBadge(
                 rank = index + 1,
-                candidate = candidate
+                candidate = candidate,
+                isSelected = candidate.scientificName == selectedScientificName,
+                onClick = { onCandidateSelected(candidate) }
             )
             if (index < candidates.lastIndex) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -567,7 +598,7 @@ private fun IdentificationCandidates(
             Text(
                 text = message,
                 fontSize = 12.sp,
-                color = if (hasSuggestedSpecies) GreenPrimary else Color.Gray,
+                color = if (!selectedScientificName.isNullOrBlank()) GreenPrimary else Color.Gray,
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
@@ -577,17 +608,22 @@ private fun IdentificationCandidates(
 @Composable
 private fun CandidateBadge(
     rank: Int,
-    candidate: PlantIdentificationCandidateDto
+    candidate: PlantIdentificationCandidateDto,
+    isSelected: Boolean,
+    onClick: () -> Unit
 ) {
     // Badge visual para cada candidato, con ranking y porcentaje de confianza.
     val score = candidate.score?.let { "${(it * 100).toInt()}%" } ?: "--"
-    val name = candidate.commonName?.takeIf { it.isNotBlank() } ?: candidate.scientificName
+    val name = candidate.displayName?.takeIf { it.isNotBlank() }
+        ?: candidate.commonName?.takeIf { it.isNotBlank() }
+        ?: candidate.scientificName
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFEAF5EA))
+            .background(if (isSelected) Color(0xFFDFF2E1) else Color(0xFFEAF5EA))
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
