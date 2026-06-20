@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -26,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -35,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +58,7 @@ import coil.compose.AsyncImage
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.PlantImageStore
 import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.ui.models.GardenerAdviceRequest
 import com.example.plant_care_app.ui.models.PlantDetailDto
 import com.example.plant_care_app.ui.models.PlantSpeciesDto
 import com.example.plant_care_app.ui.models.PlantStatusDto
@@ -63,6 +67,7 @@ import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import com.example.plant_care_app.utils.PlantImageFileManager
 import com.example.plant_care_app.utils.PlantImageResolver
 import java.io.File
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlantDetailScreen(plantId: String, navController: NavController) {
@@ -70,6 +75,11 @@ fun PlantDetailScreen(plantId: String, navController: NavController) {
     var plant by remember { mutableStateOf<PlantDetailDto?>(null) }
     var readings by remember { mutableStateOf<List<ReadingDto>>(emptyList()) }
     var status by remember { mutableStateOf<PlantStatusDto?>(null) }
+    var gardenerMessage by remember(plantId) { mutableStateOf("") }
+    var isGardenerLoading by remember(plantId) { mutableStateOf(false) }
+    var gardenerResponse by remember(plantId) { mutableStateOf<String?>(null) }
+    var gardenerError by remember(plantId) { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(plantId) {
         plant = RetrofitClient.plantApi.getPlantById(plantId)
@@ -81,6 +91,32 @@ fun PlantDetailScreen(plantId: String, navController: NavController) {
         plant = plant,
         readings = readings,
         status = status,
+        gardenerMessage = gardenerMessage,
+        isGardenerLoading = isGardenerLoading,
+        gardenerResponse = gardenerResponse,
+        gardenerError = gardenerError,
+        onGardenerMessageChange = { gardenerMessage = it },
+        onGardenerConsult = {
+            scope.launch {
+                isGardenerLoading = true
+                gardenerResponse = null
+                gardenerError = null
+
+                try {
+                    val response = RetrofitClient.plantApi.getGardenerAdvice(
+                        plantId = plantId,
+                        body = GardenerAdviceRequest(
+                            userMessage = gardenerMessage.trim().takeIf { it.isNotEmpty() }
+                        )
+                    )
+                    gardenerResponse = response.advice
+                } catch (e: Exception) {
+                    gardenerError = "No se pudo consultar al Jardinero Virtual"
+                } finally {
+                    isGardenerLoading = false
+                }
+            }
+        },
         onBack = { navController.popBackStack() },
         onEvaluationsClick = { id, name, species ->
             navController.navigate("plant_evaluations/$id/$name/$species")
@@ -94,6 +130,12 @@ private fun PlantDetailContent(
     plant: PlantDetailDto?,
     readings: List<ReadingDto>,
     status: PlantStatusDto?,
+    gardenerMessage: String,
+    isGardenerLoading: Boolean,
+    gardenerResponse: String?,
+    gardenerError: String?,
+    onGardenerMessageChange: (String) -> Unit,
+    onGardenerConsult: () -> Unit,
     onBack: () -> Unit,
     onEvaluationsClick: (String, String, String) -> Unit
 ) {
@@ -296,7 +338,15 @@ private fun PlantDetailContent(
 
             plant?.speciesDetails?.let { speciesDetails ->
                 item {
-                    SpeciesCareCard(speciesDetails)
+                    SpeciesCareCard(
+                        species = speciesDetails,
+                        gardenerMessage = gardenerMessage,
+                        isGardenerLoading = isGardenerLoading,
+                        gardenerResponse = gardenerResponse,
+                        gardenerError = gardenerError,
+                        onGardenerMessageChange = onGardenerMessageChange,
+                        onGardenerConsult = onGardenerConsult
+                    )
                 }
             }
 
@@ -428,7 +478,15 @@ private fun StatusHumidityCard(
 }
 
 @Composable
-private fun SpeciesCareCard(species: PlantSpeciesDto) {
+private fun SpeciesCareCard(
+    species: PlantSpeciesDto,
+    gardenerMessage: String,
+    isGardenerLoading: Boolean,
+    gardenerResponse: String?,
+    gardenerError: String?,
+    onGardenerMessageChange: (String) -> Unit,
+    onGardenerConsult: () -> Unit
+) {
     val humidityRange = species.humidityMin?.let { min ->
         species.humidityMax?.let { max -> "$min% - $max%" }
     }
@@ -454,12 +512,109 @@ private fun SpeciesCareCard(species: PlantSpeciesDto) {
             careItems = careItems
         )
 
+        VirtualGardenerCard(
+            message = gardenerMessage,
+            isLoading = isGardenerLoading,
+            response = gardenerResponse,
+            error = gardenerError,
+            onMessageChange = onGardenerMessageChange,
+            onConsult = onGardenerConsult
+        )
+
         if (tips.isNotEmpty()) {
             CareTipsCard(tips)
         }
 
         if (!fact.isNullOrBlank()) {
             SpeciesFactCard(fact)
+        }
+    }
+}
+
+@Composable
+private fun VirtualGardenerCard(
+    message: String,
+    isLoading: Boolean,
+    response: String?,
+    error: String?,
+    onMessageChange: (String) -> Unit,
+    onConsult: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F8E9))
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(text = "🌱", fontSize = 28.sp)
+                Column {
+                    Text(
+                        text = "Jardinero Virtual",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32)
+                    )
+                    Text(
+                        text = "Preguntale a Jardi sobre esta planta.",
+                        fontSize = 13.sp,
+                        color = Color(0xFF526354)
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value = message,
+                onValueChange = onMessageChange,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
+                placeholder = { Text("Ej: Las hojas están amarillas") },
+                minLines = 2,
+                maxLines = 4,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Button(
+                onClick = onConsult,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text("Consultando...")
+                } else {
+                    Text("Consultar")
+                }
+            }
+
+            if (!response.isNullOrBlank()) {
+                Text(
+                    text = response,
+                    fontSize = 13.sp,
+                    color = Color(0xFF25382A),
+                    lineHeight = 18.sp
+                )
+            }
+
+            if (!error.isNullOrBlank()) {
+                Text(
+                    text = error,
+                    fontSize = 13.sp,
+                    color = Color(0xFFB71C1C)
+                )
+            }
         }
     }
 }
@@ -715,6 +870,12 @@ private fun PlantDetailContentPreview() {
                 urgency = "low",
                 explanation = "La planta está en buen estado. Mantené el riego actual."
             ),
+            gardenerMessage = "",
+            isGardenerLoading = false,
+            gardenerResponse = null,
+            gardenerError = null,
+            onGardenerMessageChange = {},
+            onGardenerConsult = {},
             onBack = {},
             onEvaluationsClick = { _, _, _ -> }
         )
