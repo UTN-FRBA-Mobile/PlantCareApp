@@ -1,6 +1,8 @@
 package com.example.plant_care_app.data
 
 import com.example.plant_care_app.ui.models.CreateSensorRequest
+import com.example.plant_care_app.ui.models.GardenerAdviceRequest
+import com.example.plant_care_app.ui.models.GardenerAdviceResponse
 import com.example.plant_care_app.ui.models.PlantDetailDto
 import com.example.plant_care_app.ui.models.PlantIdentificationResponseDto
 import com.example.plant_care_app.ui.models.UpdatePlantSensorRequest
@@ -48,6 +50,12 @@ interface PlantApiService {
 
     @GET("api/plants/{plantId}/status")
     suspend fun getPlantStatus(@Path("plantId") plantId: String): PlantStatusDto
+
+    @POST("api/plants/{plantId}/gardener-advice")
+    suspend fun getGardenerAdvice(
+        @Path("plantId") plantId: String,
+        @Body body: GardenerAdviceRequest
+    ): GardenerAdviceResponse
 
     @PUT("api/plants/{id}")
     suspend fun updatePlantSensor(@Path("id") id: String, @Body body: UpdatePlantSensorRequest): PlantDetailDto
