@@ -68,6 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.plant_care_app.data.CloudinaryUploader
 import com.example.plant_care_app.data.PlantImageStore
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.ui.models.PlantIdentificationCandidateDto
@@ -474,22 +475,16 @@ fun AddPlantScreen(
                 isLoading = true
                 scope.launch {
                     try {
-                        // Se obtiene la imagen de la planta
-                        val imagePlant = photoFile?.let { file ->
-                            val requestFile = file.asRequestBody("image/jpeg".toMediaType())
-
-                            MultipartBody.Part.createFormData(
-                                name = "image",
-                                filename = file.name,
-                                body = requestFile
-                            )
+                        // Sube la foto a Cloudinary y obtiene la URL remota a persistir.
+                        val imageUrl = photoFile?.let { file ->
+                            CloudinaryUploader.upload(file)
                         }
 
                         val createdPlant = RetrofitClient.plantApi.createPlant(
-                            image = imagePlant,
                             name = name.trim().toRequestBody("text/plain".toMediaType()),
                             speciesId = selectedSpeciesId!!.toRequestBody("text/plain".toMediaType()),
                             location = selectedLocation.toRequestBody("text/plain".toMediaType()),
+                            imageUrl = imageUrl?.toRequestBody("text/plain".toMediaType()),
                             sensorId = selectedSensorId
                                 ?.takeIf { it.isNotBlank() }
                                 ?.toRequestBody("text/plain".toMediaType()),

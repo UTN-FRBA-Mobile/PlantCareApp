@@ -76,13 +76,14 @@ interface PlantApiService {
     @DELETE("api/sensors/{id}")
     suspend fun deleteSensor(@Path("id") id: String): SensorDto
 
+    // La foto se sube directo a Cloudinary desde la app; aca solo viaja la URL como texto.
     @Multipart
     @POST("api/plants")
     suspend fun createPlant(
-        @Part image: MultipartBody.Part?,
         @Part("name") name: RequestBody,
         @Part("speciesId") speciesId: RequestBody,
         @Part("location") location: RequestBody,
+        @Part("imageUrl") imageUrl: RequestBody?,
         @Part("sensorId") sensorId: RequestBody?,
         @Part("identifiedCommonName") identifiedCommonName: RequestBody?,
         @Part("identifiedScientificName") identifiedScientificName: RequestBody?
