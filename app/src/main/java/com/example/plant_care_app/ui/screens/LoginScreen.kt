@@ -32,11 +32,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.focus.FocusDirection
@@ -48,24 +50,60 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.example.plant_care_app.R
+import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.ui.models.LoginRequest
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
+import kotlinx.coroutines.launch
+import com.example.plant_care_app.data.SessionManager
 
 @Composable
 fun LoginScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    var isLoading by remember { mutableStateOf(false) }
+
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
     LoginScreenContent(
         errorMessage = errorMessage,
         onLoginClick = { email, password ->
-            if (email.isNotEmpty() && password.isNotEmpty()) {
-                errorMessage = null
-                navController.navigate("overview") {
-                    popUpTo("login") { inclusive = true }
-                }
-            } else {
+
+            if (email.isBlank() || password.isBlank()) {
                 errorMessage = "Por favor, completa todos los campos"
+                return@LoginScreenContent
+            }
+
+            coroutineScope.launch {
+                try {
+                    isLoading = true
+                    errorMessage = null
+
+                    val response = RetrofitClient.authApi.login(
+                        LoginRequest(
+                            email = email,
+                            password = password
+                        )
+                    )
+
+                    SessionManager.saveToken(context, response.token)
+
+                    println("TOKEN: ${response.token}")
+
+                    navController.navigate("overview") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                } catch (e: Exception) {
+                        e.printStackTrace()
+
+                        errorMessage = e.message ?: "Error desconocido"
+                 //   }
+                //} catch (e: Exception) {
+                  //  errorMessage = "No se pudo iniciar sesión"
+                } finally {
+                    isLoading = false
+                }
             }
         },
         onSignUpClick = {
@@ -100,7 +138,8 @@ private fun LoginScreenContent(
             contentDescription = "Logo",
             modifier = Modifier
                 .size(120.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .padding(8.dp),
+            contentScale = ContentScale.Fit
         )
 
         Spacer(modifier = Modifier.height(16.dp))

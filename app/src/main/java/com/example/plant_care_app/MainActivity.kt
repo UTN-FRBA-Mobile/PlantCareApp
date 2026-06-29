@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -22,17 +24,25 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.data.SessionManager
+import com.example.plant_care_app.ui.screens.AddEditSensorScreen
 import com.example.plant_care_app.ui.screens.PlantDetailScreen
 import com.example.plant_care_app.ui.screens.AddPlantScreen
+import com.example.plant_care_app.ui.screens.PlantDetailEvaluationScreen
 import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
 import com.example.plant_care_app.ui.screens.LoginScreen
 import com.example.plant_care_app.ui.screens.RegisterScreen
+import com.example.plant_care_app.ui.screens.SensorsListScreen
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        RetrofitClient.init(applicationContext)
         enableEdgeToEdge()
         setContent {
             PlantCareAppTheme {
@@ -45,7 +55,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App(){
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "login") {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val startDestination =
+        if (SessionManager.getToken(context) != null) "overview" else "login"
+
+    NavHost(navController = navController, startDestination = startDestination) {
         composable("login") {
             LoginScreen(navController = navController)
         }
@@ -54,7 +69,18 @@ private fun App(){
         }
         composable("overview") {
             PlantsOverviewScreen(
-                navController = navController, onAddPlant = { navController.navigate("add_plant") })
+                navController = navController,
+                onAddPlant = {
+                    navController.navigate("add_plant")
+                },
+                onLogout = {
+                    SessionManager.clearToken(context)
+
+                    navController.navigate("login") {
+                        popUpTo("overview") { inclusive = true }
+                    }
+                }
+            )
         }
         composable("plant_detail/{plantId}") { backStackEntry ->
             val plantId = backStackEntry.arguments?.getString("plantId") ?: ""
@@ -63,8 +89,73 @@ private fun App(){
                 navController = navController
             )
         }
-        composable("add_plant") {
-            AddPlantScreen(onBack = { navController.popBackStack() })
+        composable("add_plant") { backStackEntry ->
+            val linkedSensorId by backStackEntry.savedStateHandle
+                .getStateFlow<String?>("linkedSensorId", null)
+                .collectAsState()
+
+            AddPlantScreen(
+                onBack = { navController.popBackStack() },
+                onAddSensor = { navController.navigate("add_sensor") },
+                // Al crear una planta se redirige naturalmente al Detalle de la Planta
+                onPlantCreated = { plantId ->
+                    navController.navigate("plant_detail/$plantId") {
+                        popUpTo("add_plant") { inclusive = true }
+                    }
+                },
+                linkedSensorId = linkedSensorId,
+                onLinkedSensorHandled = {
+                    backStackEntry.savedStateHandle.remove<String>("linkedSensorId")
+                }
+            )
+        }
+        composable("sensors") {
+            SensorsListScreen(
+                onAddSensor = { navController.navigate("add_sensor") },
+                onEditSensor = { id -> navController.navigate("edit_sensor/$id") },
+                onBack = { navController.popBackStack() },
+                onSessionExpired = {
+                    navController.navigate("login") {
+                        popUpTo("overview") { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable("add_sensor") {
+            AddEditSensorScreen(
+                sensorId = null,
+                onBack = { navController.popBackStack() },
+                onSensorCreated = { sensorId ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("linkedSensorId", sensorId)
+                }
+            )
+        }
+        composable(
+            route = "edit_sensor/{sensorId}",
+            arguments = listOf(navArgument("sensorId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val sensorId = backStackEntry.arguments?.getString("sensorId") ?: ""
+            AddEditSensorScreen(sensorId = sensorId, onBack = { navController.popBackStack() })
+        }
+        composable(
+            route = "plant_evaluations/{plantId}/{name}/{type}",
+            arguments = listOf(
+                navArgument("plantId") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType },
+                navArgument("type") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val plantId = backStackEntry.arguments?.getString("plantId") ?: ""
+            val name = backStackEntry.arguments?.getString("name") ?: "Planta"
+            val type = backStackEntry.arguments?.getString("type") ?: "Especie"
+            PlantDetailEvaluationScreen(
+                navController = navController,
+                plantId = plantId,
+                plantName = name,
+                plantType = type
+            )
         }
     }
 }

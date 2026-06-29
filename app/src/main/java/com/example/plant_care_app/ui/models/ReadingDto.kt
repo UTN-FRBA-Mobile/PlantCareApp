@@ -5,5 +5,8 @@ data class ReadingDto(
     val sensorId: String,
     val soilMoisture: Int,
     val readAt: String?,
-    val source: String?
+    val source: String?,
+    val stressStatus: String? = null,
+    val explanation: String? = null,
+    val recommendation: String? = null
 )
