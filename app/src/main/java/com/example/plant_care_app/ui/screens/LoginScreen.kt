@@ -53,6 +53,7 @@ import androidx.navigation.NavController
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.ui.models.LoginRequest
+import com.example.plant_care_app.ui.models.FcmTokenRequest
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import kotlinx.coroutines.launch
 import com.example.plant_care_app.data.SessionManager
@@ -88,6 +89,17 @@ fun LoginScreen(navController: NavController) {
                     )
 
                     SessionManager.saveToken(context, response.token)
+
+                    // Update FCM token on backend after successful login
+                    val fcmToken = SessionManager.getFcmToken(context)
+                    if (fcmToken != null) {
+                        try {
+                            RetrofitClient.authApi.updateFcmToken(FcmTokenRequest(fcmToken))
+                        } catch (e: Exception) {
+                            // Non-critical error, just log it
+                            e.printStackTrace()
+                        }
+                    }
 
                     println("TOKEN: ${response.token}")
 

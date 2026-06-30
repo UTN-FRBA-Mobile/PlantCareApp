@@ -36,6 +36,8 @@ import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 
+import androidx.navigation.navDeepLink
+
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,7 +82,12 @@ private fun App(){
                 }
             )
         }
-        composable("plant_detail/{plantId}") { backStackEntry ->
+        composable(
+            route = "plant_detail/{plantId}",
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "app://plantcare/plant/{plantId}" }
+            )
+        ) { backStackEntry ->
             val plantId = backStackEntry.arguments?.getString("plantId") ?: ""
             PlantDetailScreen(
                 plantId = plantId,

@@ -25,6 +25,7 @@ class PlantAlertNotificationManager(
             val statusLabel = plant.statusLabel ?: return@forEach
 
             plantReminderService.sendPlantAlertNotification(
+                plantId = plant.id,
                 plantName = plant.name,
                 soilMoisture = plant.soilMoisture
             )

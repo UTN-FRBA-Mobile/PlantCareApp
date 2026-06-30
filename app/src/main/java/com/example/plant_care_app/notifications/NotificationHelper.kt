@@ -40,13 +40,19 @@ class NotificationHelper(private val context: Context) {
         }
     }
 
-    fun showNotification(title: String, message: String) {
+    fun showNotification(title: String, message: String, plantId: String? = null) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            if (plantId != null) {
+                putExtra("plantId", plantId)
+                // Use a custom action or data to ensure deep linking works correctly if needed,
+                // but for Compose Navigation we can often just handle the intent extras in MainActivity
+                data = android.net.Uri.parse("app://plantcare/plant/$plantId")
+            }
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            title.hashCode(),
+            plantId.hashCode() + title.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

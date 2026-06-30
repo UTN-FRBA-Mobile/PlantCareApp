@@ -12,6 +12,7 @@ class PlantReminderService(context: Context) {
     private val notificationHelper = NotificationHelper(context)
 
     fun sendPlantAlertNotification(
+        plantId: String,
         plantName: String,
         soilMoisture: Int?
     ) {
@@ -23,7 +24,8 @@ class PlantReminderService(context: Context) {
 
         notificationHelper.showNotification(
             title = "$plantName necesita atención \uD83C\uDF31",
-            message = message
+            message = message,
+            plantId = plantId
         )
     }
 }
