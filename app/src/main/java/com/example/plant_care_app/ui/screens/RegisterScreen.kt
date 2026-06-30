@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.data.toUserMessage
 import com.example.plant_care_app.ui.models.RegisterRequest
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import kotlinx.coroutines.coroutineScope
@@ -92,7 +93,7 @@ fun RegisterScreen(navController: NavController) {
 
                         e.printStackTrace()
 
-                        errorMessage = e.message ?: "No se pudo registrar"
+                        errorMessage = e.toUserMessage()
 
                     }
                 }

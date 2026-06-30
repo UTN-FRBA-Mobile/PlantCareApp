@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.data.toLoginMessage
 import com.example.plant_care_app.ui.models.LoginRequest
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import kotlinx.coroutines.launch
@@ -95,12 +96,8 @@ fun LoginScreen(navController: NavController) {
                         popUpTo("login") { inclusive = true }
                     }
                 } catch (e: Exception) {
-                        e.printStackTrace()
-
-                        errorMessage = e.message ?: "Error desconocido"
-                 //   }
-                //} catch (e: Exception) {
-                  //  errorMessage = "No se pudo iniciar sesión"
+                    e.printStackTrace()
+                    errorMessage = e.toLoginMessage()
                 } finally {
                     isLoading = false
                 }
