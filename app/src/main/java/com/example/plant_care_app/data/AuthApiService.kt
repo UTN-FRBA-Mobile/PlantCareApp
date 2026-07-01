@@ -1,6 +1,7 @@
 package com.example.plant_care_app.data
 
 import com.example.plant_care_app.ui.models.AuthResponse
+import com.example.plant_care_app.ui.models.FcmTokenRequest
 import com.example.plant_care_app.ui.models.LoginRequest
 import com.example.plant_care_app.ui.models.RegisterRequest
 import retrofit2.http.Body
@@ -13,4 +14,7 @@ interface AuthApiService {
 
     @POST("api/auth/register")
     suspend fun register(@Body request: RegisterRequest): AuthResponse
+
+    @POST("api/auth/fcm-token")
+    suspend fun registerFcmToken(@Body request: FcmTokenRequest)
 }

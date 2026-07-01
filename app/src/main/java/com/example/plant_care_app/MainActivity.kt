@@ -1,9 +1,15 @@
 package com.example.plant_care_app
 
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
+import com.example.plant_care_app.ui.models.FcmTokenRequest
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,10 +49,45 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         RetrofitClient.init(applicationContext)
+        
+        // Obtención del FCM Token para notificaciones push
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("MainActivity", "Error al obtener el token de FCM", task.exception)
+                return@addOnCompleteListener
+            }
+
+            val token = task.result
+            Log.d("MainActivity", "FCM Token: $token")
+            sendTokenToBackend(token)
+        }
+
         enableEdgeToEdge()
         setContent {
             PlantCareAppTheme {
                 App()
+            }
+        }
+    }
+
+    private fun sendTokenToBackend(token: String) {
+        val request = FcmTokenRequest(
+            token = token,
+            deviceModel = Build.MODEL
+        )
+
+        lifecycleScope.launch {
+            try {
+                // El endpoint requiere autenticación. Solo enviamos si hay sesión activa.
+                if (SessionManager.getToken(applicationContext) != null) {
+                    RetrofitClient.authApi.registerFcmToken(request)
+                    Log.i("MainActivity", "FCM Token registrado con éxito en el backend")
+                } else {
+                    Log.i("MainActivity", "FCM Token obtenido, pero esperando a login para registrarlo")
+                }
+            } catch (e: Exception) {
+                // Si falla (ej. 401), se volverá a intentar en el próximo inicio o cambio de token
+                Log.e("MainActivity", "Error al registrar FCM Token en backend: ${e.message}")
             }
         }
     }
