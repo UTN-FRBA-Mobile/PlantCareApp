@@ -50,6 +50,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import android.util.Log
+import android.os.Build
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.data.toLoginMessage
@@ -57,6 +59,8 @@ import com.example.plant_care_app.ui.models.LoginRequest
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import kotlinx.coroutines.launch
 import com.example.plant_care_app.data.SessionManager
+import com.example.plant_care_app.ui.models.FcmTokenRequest
+import com.google.firebase.messaging.FirebaseMessaging
 
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -90,7 +94,25 @@ fun LoginScreen(navController: NavController) {
 
                     SessionManager.saveToken(context, response.token)
 
-                    println("TOKEN: ${response.token}")
+                    // Registro de FCM Token inmediatamente después del login para asegurar notificaciones
+                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val fcmToken = task.result
+                            coroutineScope.launch {
+                                try {
+                                    RetrofitClient.authApi.registerFcmToken(
+                                        FcmTokenRequest(
+                                            token = fcmToken,
+                                            deviceModel = Build.MODEL
+                                        )
+                                    )
+                                    Log.d("LoginScreen", "FCM Token registrado con éxito tras login")
+                                } catch (e: Exception) {
+                                    Log.e("LoginScreen", "Error al registrar FCM Token tras login: ${e.message}")
+                                }
+                            }
+                        }
+                    }
 
                     navController.navigate("overview") {
                         popUpTo("login") { inclusive = true }
