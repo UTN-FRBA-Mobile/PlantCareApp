@@ -1,19 +1,15 @@
 package com.example.plant_care_app.notifications
 
 import android.util.Log
-import com.example.plant_care_app.data.RetrofitClient
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.plant_care_app.data.SessionManager
-import com.example.plant_care_app.ui.models.FcmTokenRequest
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
-
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -22,19 +18,24 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         // 1. Guardar localmente
         SessionManager.saveFcmToken(applicationContext, token)
         
-        // 2. Si el usuario ya está autenticado, actualizar en el backend inmediatamente
-        val authToken = SessionManager.getToken(applicationContext)
-        if (authToken != null) {
-            serviceScope.launch {
-                try {
-                    // Retrofit ya tiene el interceptor que añade el Bearer token
-                    RetrofitClient.authApi.updateFcmToken(FcmTokenRequest(token))
-                    Log.d("FCM", "Token actualizado en el servidor tras refresco")
-                } catch (e: Exception) {
-                    Log.e("FCM", "Error al actualizar token tras refresco", e)
-                }
-            }
-        }
+        // 2. Programar envío al backend usando WorkManager para asegurar entrega
+        scheduleTokenUpload(token)
+    }
+
+    private fun scheduleTokenUpload(token: String) {
+        val data = Data.Builder()
+            .putString("token", token)
+            .build()
+
+        val workRequest = OneTimeWorkRequestBuilder<FcmTokenWorker>()
+            .setInputData(data)
+            .build()
+
+        WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+            "fcm_token_upload",
+            ExistingWorkPolicy.REPLACE,
+            workRequest
+        )
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
@@ -57,7 +58,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             notificationHelper.showNotification(title, body, plantId)
         }
 
-        // Handle notification payload (if any, though data is preferred for background handling)
+        // Handle notification payload
         message.notification?.let {
             Log.d("FCM", "Message Notification Body: ${it.body}")
         }

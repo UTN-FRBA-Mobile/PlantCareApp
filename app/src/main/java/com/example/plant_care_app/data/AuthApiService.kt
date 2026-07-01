@@ -17,4 +17,7 @@ interface AuthApiService {
 
     @POST("api/auth/fcm-token")
     suspend fun updateFcmToken(@Body request: FcmTokenRequest)
+
+    @POST("api/auth/logout")
+    suspend fun logout(@Body request: FcmTokenRequest)
 }

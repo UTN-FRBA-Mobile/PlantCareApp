@@ -64,6 +64,9 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
 
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+
     //retrofit
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)

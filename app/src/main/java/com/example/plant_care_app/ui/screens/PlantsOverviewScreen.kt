@@ -78,7 +78,6 @@ fun PlantsOverviewScreen(
 ) {
     var plants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
     var isRefreshing by remember { mutableStateOf(false) }
-    var pendingAlertPlants by remember { mutableStateOf<List<PlantOverviewDto>>(emptyList()) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val notificationStore = remember { NotificationPreferenceStore(context.applicationContext) }
@@ -89,19 +88,6 @@ fun PlantsOverviewScreen(
         )
     }
 
-    // Launcher de Compose para pedir el permiso de notificaciones en Android 13+.
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            plantAlertNotificationManager.notifyHighStressPlants(pendingAlertPlants)
-        } else {
-            Toast.makeText(context, "Permiso de notificaciones denegado", Toast.LENGTH_SHORT).show()
-        }
-
-        pendingAlertPlants = emptyList()
-    }
-
     // Revisa el overview cargado y dispara alertas locales solo para plantas en estres alto.
     fun processPlantAlertNotifications(overviewPlants: List<PlantOverviewDto>) {
         val alertPlants = plantAlertNotificationManager.getPendingHighStressAlerts(overviewPlants)
@@ -110,6 +96,7 @@ fun PlantsOverviewScreen(
             return
         }
 
+        // Ya no pedimos el permiso aquí, se pide globalmente en MainActivity
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(
                 context,
@@ -117,12 +104,6 @@ fun PlantsOverviewScreen(
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             plantAlertNotificationManager.notifyHighStressPlants(alertPlants)
-        } else if (!notificationStore.hasAskedNotificationPermission()) {
-            pendingAlertPlants = alertPlants
-            notificationStore.markNotificationPermissionAsked()
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            pendingAlertPlants = emptyList()
         }
     }
 

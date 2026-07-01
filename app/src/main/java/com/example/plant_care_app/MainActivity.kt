@@ -1,9 +1,14 @@
 package com.example.plant_care_app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,30 +18,35 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.plant_care_app.data.RetrofitClient
 import com.example.plant_care_app.data.SessionManager
+import com.example.plant_care_app.ui.models.FcmTokenRequest
 import com.example.plant_care_app.ui.screens.AddEditSensorScreen
-import com.example.plant_care_app.ui.screens.PlantDetailScreen
 import com.example.plant_care_app.ui.screens.AddPlantScreen
-import com.example.plant_care_app.ui.screens.PlantDetailEvaluationScreen
-import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
 import com.example.plant_care_app.ui.screens.LoginScreen
+import com.example.plant_care_app.ui.screens.PlantDetailEvaluationScreen
+import com.example.plant_care_app.ui.screens.PlantDetailScreen
+import com.example.plant_care_app.ui.screens.PlantsOverviewScreen
 import com.example.plant_care_app.ui.screens.RegisterScreen
 import com.example.plant_care_app.ui.screens.SensorsListScreen
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
-
-import androidx.navigation.navDeepLink
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -46,16 +56,54 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PlantCareAppTheme {
-                App()
+                RequestNotificationPermission()
+                App(onLogout = { performLogout() })
+            }
+        }
+    }
+
+    private fun performLogout() {
+        lifecycleScope.launch {
+            try {
+                val token = SessionManager.getFcmToken(applicationContext)
+                if (token != null) {
+                    RetrofitClient.authApi.logout(FcmTokenRequest(token))
+                }
+            } catch (e: Exception) {
+                // Log error but continue clearing local data
+            } finally {
+                SessionManager.clearToken(applicationContext)
             }
         }
     }
 }
 
 @Composable
-private fun App(){
+fun RequestNotificationPermission() {
+    val context = LocalContext.current
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val launcher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            // Manejar resultado si es necesario
+        }
+
+        LaunchedEffect(Unit) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+}
+
+@Composable
+private fun App(onLogout: () -> Unit) {
     val navController = rememberNavController()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
     val startDestination =
         if (SessionManager.getToken(context) != null) "overview" else "login"
@@ -74,8 +122,7 @@ private fun App(){
                     navController.navigate("add_plant")
                 },
                 onLogout = {
-                    SessionManager.clearToken(context)
-
+                    onLogout()
                     navController.navigate("login") {
                         popUpTo("overview") { inclusive = true }
                     }

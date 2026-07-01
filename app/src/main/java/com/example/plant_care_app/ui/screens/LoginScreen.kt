@@ -50,27 +50,28 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.plant_care_app.R
 import com.example.plant_care_app.data.RetrofitClient
+import com.example.plant_care_app.data.SessionManager
+import com.example.plant_care_app.notifications.FcmTokenWorker
 import com.example.plant_care_app.ui.models.LoginRequest
-import com.example.plant_care_app.ui.models.FcmTokenRequest
 import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import kotlinx.coroutines.launch
-import com.example.plant_care_app.data.SessionManager
 
 @Composable
 fun LoginScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
     var isLoading by remember { mutableStateOf(false) }
-
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     LoginScreenContent(
         errorMessage = errorMessage,
         onLoginClick = { email, password ->
-
             if (email.isBlank() || password.isBlank()) {
                 errorMessage = "Por favor, completa todos los campos"
                 return@LoginScreenContent
@@ -82,37 +83,35 @@ fun LoginScreen(navController: NavController) {
                     errorMessage = null
 
                     val response = RetrofitClient.authApi.login(
-                        LoginRequest(
-                            email = email,
-                            password = password
-                        )
+                        LoginRequest(email = email, password = password)
                     )
 
                     SessionManager.saveToken(context, response.token)
 
-                    // Update FCM token on backend after successful login
+                    // Sincronizar FCM Token con WorkManager
                     val fcmToken = SessionManager.getFcmToken(context)
                     if (fcmToken != null) {
-                        try {
-                            RetrofitClient.authApi.updateFcmToken(FcmTokenRequest(fcmToken))
-                        } catch (e: Exception) {
-                            // Non-critical error, just log it
-                            e.printStackTrace()
-                        }
-                    }
+                        val data = Data.Builder()
+                            .putString("token", fcmToken)
+                            .build()
 
-                    println("TOKEN: ${response.token}")
+                        val workRequest = OneTimeWorkRequestBuilder<FcmTokenWorker>()
+                            .setInputData(data)
+                            .build()
+
+                        WorkManager.getInstance(context).enqueueUniqueWork(
+                            "fcm_token_upload",
+                            ExistingWorkPolicy.REPLACE,
+                            workRequest
+                        )
+                    }
 
                     navController.navigate("overview") {
                         popUpTo("login") { inclusive = true }
                     }
                 } catch (e: Exception) {
-                        e.printStackTrace()
-
-                        errorMessage = e.message ?: "Error desconocido"
-                 //   }
-                //} catch (e: Exception) {
-                  //  errorMessage = "No se pudo iniciar sesión"
+                    e.printStackTrace()
+                    errorMessage = e.message ?: "Error desconocido"
                 } finally {
                     isLoading = false
                 }
@@ -144,7 +143,6 @@ private fun LoginScreenContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // App Logo
         Image(
             painter = painterResource(id = R.drawable.app_image),
             contentDescription = "Logo",
@@ -155,7 +153,6 @@ private fun LoginScreenContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // App Title
         Text(
             text = "Plant Care",
             fontSize = 32.sp,
@@ -170,7 +167,6 @@ private fun LoginScreenContent(
             modifier = Modifier.padding(bottom = 48.dp)
         )
 
-        // Error Message
         if (errorMessage != null) {
             Text(
                 text = errorMessage,
@@ -180,7 +176,6 @@ private fun LoginScreenContent(
             )
         }
 
-        // Email Field
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "Correo Electrónico",
@@ -191,9 +186,7 @@ private fun LoginScreenContent(
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = email,
-                onValueChange = { 
-                    email = it 
-                },
+                onValueChange = { email = it },
                 placeholder = { Text("ejemplo@correo.com", color = Color.LightGray) },
                 leadingIcon = {
                     Icon(
@@ -220,7 +213,6 @@ private fun LoginScreenContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Password Field
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "Contraseña",
@@ -231,9 +223,7 @@ private fun LoginScreenContent(
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = password,
-                onValueChange = { 
-                    password = it 
-                },
+                onValueChange = { password = it },
                 placeholder = { Text("••••••••", color = Color.LightGray) },
                 leadingIcon = {
                     Icon(
@@ -261,7 +251,6 @@ private fun LoginScreenContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Login Button
         Button(
             onClick = { onLoginClick(email, password) },
             modifier = Modifier
@@ -282,7 +271,6 @@ private fun LoginScreenContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Sign Up Navigation
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
