@@ -60,7 +60,9 @@ import com.example.plant_care_app.ui.theme.PlantCareAppTheme
 import kotlinx.coroutines.launch
 import com.example.plant_care_app.data.SessionManager
 import com.example.plant_care_app.ui.models.FcmTokenRequest
-import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.Firebase
+import com.google.firebase.messaging.messaging
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -95,22 +97,18 @@ fun LoginScreen(navController: NavController) {
                     SessionManager.saveToken(context, response.token)
 
                     // Registro de FCM Token inmediatamente después del login para asegurar notificaciones
-                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            val fcmToken = task.result
-                            coroutineScope.launch {
-                                try {
-                                    RetrofitClient.authApi.registerFcmToken(
-                                        FcmTokenRequest(
-                                            token = fcmToken,
-                                            deviceModel = Build.MODEL
-                                        )
-                                    )
-                                    Log.d("LoginScreen", "FCM Token registrado con éxito tras login")
-                                } catch (e: Exception) {
-                                    Log.e("LoginScreen", "Error al registrar FCM Token tras login: ${e.message}")
-                                }
-                            }
+                    coroutineScope.launch {
+                        try {
+                            val fcmToken = Firebase.messaging.getToken().await()
+                            RetrofitClient.authApi.registerFcmToken(
+                                FcmTokenRequest(
+                                    token = fcmToken,
+                                    deviceModel = Build.MODEL
+                                )
+                            )
+                            Log.d("LoginScreen", "FCM Token registrado con éxito tras login")
+                        } catch (e: Exception) {
+                            Log.e("LoginScreen", "Error al registrar FCM Token tras login: ${e.message}")
                         }
                     }
 

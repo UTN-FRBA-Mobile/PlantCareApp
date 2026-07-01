@@ -8,8 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import com.example.plant_care_app.ui.models.FcmTokenRequest
-import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.Firebase
+import com.google.firebase.messaging.messaging
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,15 +53,18 @@ class MainActivity : ComponentActivity() {
         RetrofitClient.init(applicationContext)
         
         // Obtención del FCM Token para notificaciones push
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (!task.isSuccessful) {
-                Log.w("MainActivity", "Error al obtener el token de FCM", task.exception)
-                return@addOnCompleteListener
+        lifecycleScope.launch {
+            try {
+                // Se usa getToken() y se espera con await(). 
+                // Se añade supresión si persiste la advertencia en el entorno de build, 
+                // ya que es la API recomendada por Firebase para recuperar el token actual.
+                @Suppress("DEPRECATION")
+                val token = Firebase.messaging.token.await()
+                Log.d("MainActivity", "FCM Token: $token")
+                sendTokenToBackend(token)
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Error al obtener el token de FCM", e)
             }
-
-            val token = task.result
-            Log.d("MainActivity", "FCM Token: $token")
-            sendTokenToBackend(token)
         }
 
         enableEdgeToEdge()
